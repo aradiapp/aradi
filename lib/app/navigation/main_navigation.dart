@@ -1,0 +1,463 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aradi/app/theme/app_theme.dart';
+import 'package:aradi/core/models/user.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:aradi/core/config/app_config.dart';
+
+class MainNavigation extends ConsumerStatefulWidget {
+  final Widget child;
+  final UserRole userRole; // Keep for backward compatibility, but will be overridden
+
+  const MainNavigation({
+    super.key,
+    required this.child,
+    required this.userRole,
+  });
+
+  @override
+  ConsumerState<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends ConsumerState<MainNavigation> {
+  int _currentIndex = 0;
+  UserRole? _currentUserRole;
+  bool _isLoadingRole = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUserRole();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Force refresh user role when dependencies change
+    refreshUserRole();
+  }
+
+  Future<void> _loadCurrentUserRole() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (mounted) {
+        setState(() {
+          _currentUserRole = currentUser?.role ?? widget.userRole;
+          _isLoadingRole = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user role: $e');
+      if (mounted) {
+        setState(() {
+          _currentUserRole = widget.userRole;
+          _isLoadingRole = false;
+        });
+      }
+    }
+  }
+
+  // Method to refresh user role when needed
+  Future<void> refreshUserRole() async {
+    setState(() {
+      _isLoadingRole = true;
+      _currentUserRole = null; // Clear current role to force refresh
+    });
+    await _loadCurrentUserRole();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Listen to auth state changes to refresh role
+    ref.listen(authStateProvider, (previous, next) {
+      if (previous != next) {
+        // Auth state changed, refresh the role
+        refreshUserRole();
+      }
+    });
+
+    // Show loading indicator while determining user role
+    if (_isLoadingRole) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading navigation...',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Update current index based on current route
+    _updateCurrentIndex();
+    
+    return Scaffold(
+      body: widget.child,
+      bottomNavigationBar: _buildBottomNavigationBar(),
+      appBar: _buildAppBar(),
+    );
+  }
+
+  void _updateCurrentIndex() {
+    final currentRoute = GoRouterState.of(context).matchedLocation;
+    final navItems = _getNavigationItems();
+    
+    print('Current route: $currentRoute');
+    print('Navigation items: ${navItems.map((item) => item.route).toList()}');
+    
+    // Find the matching route and set the current index
+    for (int i = 0; i < navItems.length; i++) {
+      final navRoute = navItems[i].route;
+      
+      // Exact match
+      if (currentRoute == navRoute) {
+        _currentIndex = i;
+        print('Exact match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle specific routes first (most specific to least specific)
+      
+      // Handle profile routes - match exact profile routes only
+      if (navRoute == currentRoute) {
+        _currentIndex = i;
+        print('Exact profile route match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle browse routes - match any browse route to the browse tab
+      if (navRoute.contains('/browse') && currentRoute.contains('/browse')) {
+        _currentIndex = i;
+        print('Browse route match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle add listing routes - match any add route to the add tab
+      if (navRoute.contains('/land/add') && currentRoute.contains('/land/add')) {
+        _currentIndex = i;
+        print('Add listing route match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle negotiations routes
+      if (navRoute == '/neg' && currentRoute.startsWith('/neg')) {
+        _currentIndex = i;
+        print('Negotiations route match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle notifications routes
+      if (navRoute == '/notifications' && currentRoute == '/notifications') {
+        _currentIndex = i;
+        print('Notifications route match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle home routes (only exact matches or routes that don't contain /browse or /profile)
+      if ((navRoute == '/dev' && (currentRoute == '/dev' || (currentRoute.startsWith('/dev') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add')))) ||
+          (navRoute == '/buyer' && (currentRoute == '/buyer' || (currentRoute.startsWith('/buyer') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add')))) ||
+          (navRoute == '/seller' && (currentRoute == '/seller' || (currentRoute.startsWith('/seller') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add'))))) {
+        _currentIndex = i;
+        print('Home route match found: $navRoute at index $i');
+        break;
+      }
+    }
+    
+    print('Final current index: $_currentIndex');
+  }
+
+  PreferredSizeWidget? _buildAppBar() {
+    final currentRoute = GoRouterState.of(context).matchedLocation;
+    
+    // Don't show AppBar for profile pages as they have their own headers
+    final isProfilePage = currentRoute.contains('/profile');
+    
+    // Show AppBar for all other pages
+    if (isProfilePage) return null;
+    
+    return AppBar(
+      title: Text(_getAppBarTitle()),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      centerTitle: true,
+      automaticallyImplyLeading: false,
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      actions: _getAppBarActions(),
+    );
+  }
+
+  String _getAppBarTitle() {
+    final currentRoute = GoRouterState.of(context).matchedLocation;
+    if (currentRoute.contains('/listing/')) return 'Listing Details';
+    if (currentRoute.contains('/thread/')) return 'Negotiation';
+    if (currentRoute.contains('/agreement/')) return 'Agreement';
+    if (currentRoute.contains('/land/add')) return 'Add Listing';
+    if (currentRoute.contains('/notifications')) return 'Notifications';
+    if (currentRoute.contains('/neg')) return 'Negotiations';
+    if (currentRoute == '/dev') return 'Developer Dashboard';
+    if (currentRoute == '/buyer') return 'Buyer Dashboard';
+    if (currentRoute == '/seller') return 'Seller Dashboard';
+    if (currentRoute == '/admin') return 'Admin Dashboard';
+    if (currentRoute.contains('/browse')) return 'Browse Listings';
+    return AppConfig.appName;
+  }
+
+  String _getHomeRoute() {
+    // Use dynamically loaded role or fallback to passed role
+    final userRole = _currentUserRole ?? widget.userRole;
+    
+    switch (userRole) {
+      case UserRole.developer:
+        return '/dev';
+      case UserRole.buyer:
+        return '/buyer';
+      case UserRole.seller:
+        return '/seller';
+      case UserRole.admin:
+        return '/admin';
+    }
+  }
+
+  List<Widget>? _getAppBarActions() {
+    final currentRoute = GoRouterState.of(context).matchedLocation;
+    if (currentRoute.contains('/notifications')) {
+      return [
+        IconButton(
+          icon: const Icon(Icons.mark_email_read),
+          onPressed: () {
+            // This would trigger the mark all as read functionality
+            // For now, just show a snackbar
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('All notifications marked as read'),
+                backgroundColor: AppTheme.successColor,
+              ),
+            );
+          },
+        ),
+      ];
+    }
+    return null;
+  }
+
+  Widget _buildBottomNavigationBar() {
+    final navItems = _getNavigationItems();
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: navItems.asMap().entries.map((entry) {
+              final index = entry.key;
+              final item = entry.value;
+              final isSelected = _currentIndex == index;
+              
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _currentIndex = index;
+                    });
+                    context.go(item.route);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.icon,
+                          color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                          size: 22,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<NavigationItem> _getNavigationItems() {
+    // Use dynamically loaded role or fallback to passed role
+    final userRole = _currentUserRole ?? widget.userRole;
+    
+    List<NavigationItem> result;
+    switch (userRole) {
+      case UserRole.developer:
+        result = [
+          NavigationItem(
+            icon: Icons.home,
+            label: 'Home',
+            route: '/dev',
+          ),
+          NavigationItem(
+            icon: Icons.search,
+            label: 'Browse',
+            route: '/dev/browse',
+          ),
+          NavigationItem(
+            icon: Icons.chat,
+            label: 'Chat',
+            route: '/neg',
+          ),
+          NavigationItem(
+            icon: Icons.notifications,
+            label: 'Alerts',
+            route: '/notifications',
+          ),
+          NavigationItem(
+            icon: Icons.person,
+            label: 'Profile',
+            route: '/dev/profile',
+          ),
+        ];
+        break;
+      case UserRole.buyer:
+        result = [
+          NavigationItem(
+            icon: Icons.home,
+            label: 'Home',
+            route: '/buyer',
+          ),
+          NavigationItem(
+            icon: Icons.search,
+            label: 'Browse',
+            route: '/buyer/browse',
+          ),
+          NavigationItem(
+            icon: Icons.chat,
+            label: 'Chat',
+            route: '/neg',
+          ),
+          NavigationItem(
+            icon: Icons.notifications,
+            label: 'Alerts',
+            route: '/notifications',
+          ),
+          NavigationItem(
+            icon: Icons.person,
+            label: 'Profile',
+            route: '/buyer/profile',
+          ),
+        ];
+        break;
+      case UserRole.seller:
+        result = [
+          NavigationItem(
+            icon: Icons.home,
+            label: 'Home',
+            route: '/seller',
+          ),
+          NavigationItem(
+            icon: Icons.add,
+            label: 'Add Listing',
+            route: '/seller/land/add',
+          ),
+          NavigationItem(
+            icon: Icons.chat,
+            label: 'Chat',
+            route: '/neg',
+          ),
+          NavigationItem(
+            icon: Icons.notifications,
+            label: 'Alerts',
+            route: '/notifications',
+          ),
+          NavigationItem(
+            icon: Icons.person,
+            label: 'Profile',
+            route: '/seller/profile',
+          ),
+        ];
+        break;
+      case UserRole.admin:
+        result = [
+          NavigationItem(
+            icon: Icons.dashboard,
+            label: 'Dashboard',
+            route: '/admin',
+          ),
+          NavigationItem(
+            icon: Icons.queue,
+            label: 'Contract Queue',
+            route: '/admin/contract-queue',
+          ),
+          NavigationItem(
+            icon: Icons.verified,
+            label: 'Verification',
+            route: '/admin/verification',
+          ),
+          NavigationItem(
+            icon: Icons.settings,
+            label: 'Settings',
+            route: '/admin/settings',
+          ),
+        ];
+        break;
+    }
+    
+    return result;
+  }
+}
+
+class NavigationItem {
+  final IconData icon;
+  final String label;
+  final String route;
+
+  NavigationItem({
+    required this.icon,
+    required this.label,
+    required this.route,
+  });
+}

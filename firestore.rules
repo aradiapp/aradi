@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users can read and write their own user document, admins can read and write all
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAdmin();
+    }
+    
+    // Developer profiles - users can read/write their own, admins can read all
+    match /developerProfiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Other users can read developer profiles for matching
+      allow read: if request.auth != null;
+      allow read: if isAdmin();
+    }
+    
+    // Buyer profiles - users can read/write their own, admins can read all
+    match /buyerProfiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isAdmin();
+    }
+    
+    // Seller profiles - users can read/write their own, admins can read all
+    match /sellerProfiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Other users can read seller profiles for matching
+      allow read: if request.auth != null;
+      allow read: if isAdmin();
+    }
+    
+    // Listings - sellers can create/update their own, everyone can read active ones
+    match /listings/{listingId} {
+      allow read: if request.auth != null && resource.data.status == 'active';
+      allow create: if request.auth != null && 
+        request.auth.uid == resource.data.sellerId;
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.sellerId;
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.sellerId;
+    }
+    
+    // Offers - participants can read/write
+    match /offers/{offerId} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.developerId || 
+         request.auth.uid == resource.data.sellerId);
+    }
+    
+    // Negotiations - participants can read/write
+    match /negotiations/{negotiationId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read, write: if request.auth != null && 
+          request.auth.uid in get(/databases/$(database)/documents/negotiations/$(negotiationId)).data.participants;
+      }
+    }
+    
+    // Subscriptions - users can read/write their own
+    match /subscriptions/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Notifications - users can read/write their own
+    match /notifications/{userId}/events/{eventId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "766361317085",
+    "project_id": "aradi-app-ed624",
+    "storage_bucket": "aradi-app-ed624.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:766361317085:android:b753416f89fb5b805ef534",
+        "android_client_info": {
+          "package_name": "com.aradi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiq_6o977MK_jlJXdKDmhzDrtBMViBFJY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

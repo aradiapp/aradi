@@ -1,0 +1,44 @@
+import 'dart:io';
+
+void main() {
+  print('🔥 Firebase Configuration Helper');
+  print('================================');
+  print('');
+  print('Follow these steps to get your Firebase configuration:');
+  print('');
+  print('1. Go to Firebase Console: https://console.firebase.google.com/');
+  print('2. Select your project (or create one)');
+  print('3. Go to Project Settings (gear icon) → General');
+  print('4. Scroll down to "Your apps" section');
+  print('5. Click on your Android app (or add one if not exists)');
+  print('');
+  print('You need these values:');
+  print('----------------------');
+  print('• Project ID: Found in Project Settings → General');
+  print('• Web API Key: Found in Project Settings → General');
+  print('• App ID: Found in your app configuration');
+  print('• Messaging Sender ID: Found in your app configuration');
+  print('• Storage Bucket: Usually {project-id}.appspot.com');
+  print('');
+  print('After getting these values:');
+  print('1. Copy env.example to .env');
+  print('2. Replace the placeholder values with your actual config');
+  print('3. Set USE_FIREBASE=true');
+  print('4. Set USE_MOCK_DATA=false');
+  print('');
+  print('Example .env file:');
+  print('------------------');
+  print('USE_FIREBASE=true');
+  print('USE_MOCK_DATA=false');
+  print('FIREBASE_PROJECT_ID=your-actual-project-id');
+  print('FIREBASE_API_KEY=your-actual-api-key');
+  print('FIREBASE_APP_ID=your-actual-app-id');
+  print('FIREBASE_MESSAGING_SENDER_ID=your-actual-sender-id');
+  print('FIREBASE_STORAGE_BUCKET=your-actual-project-id.appspot.com');
+  print('');
+  print('Don\'t forget to:');
+  print('• Download google-services.json for Android');
+  print('• Download GoogleService-Info.plist for iOS');
+  print('• Enable Authentication, Firestore, and Storage');
+  print('• Deploy security rules: firebase deploy --only firestore:rules');
+}

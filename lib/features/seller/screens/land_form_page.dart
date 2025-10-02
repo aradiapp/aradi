@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
+import 'package:aradi/core/models/land_listing.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LandFormPage extends StatefulWidget {
+class LandFormPage extends ConsumerStatefulWidget {
   const LandFormPage({super.key});
 
   @override
-  State<LandFormPage> createState() => _LandFormPageState();
+  ConsumerState<LandFormPage> createState() => _LandFormPageState();
 }
 
-class _LandFormPageState extends State<LandFormPage> {
+class _LandFormPageState extends ConsumerState<LandFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _locationController = TextEditingController();
   final _areaController = TextEditingController();
@@ -21,7 +26,7 @@ class _LandFormPageState extends State<LandFormPage> {
   String _selectedOwnership = 'freehold';
   List<String> _selectedPermissions = [];
   bool _isSubmitting = false;
-
+  final LandListingService _landListingService = LandListingService();
   final List<String> _ownershipTypes = ['freehold', 'leasehold', 'gcc'];
   final List<String> _permissionTypes = ['residential', 'commercial', 'hotel', 'mix'];
 
@@ -118,13 +123,7 @@ class _LandFormPageState extends State<LandFormPage> {
               const SizedBox(height: 16),
 
               // Ownership Type
-              _buildDropdown(
-                label: 'Ownership Type',
-                value: _selectedOwnership,
-                items: _ownershipTypes,
-                onChanged: (value) => setState(() => _selectedOwnership = value!),
-                icon: Icons.category,
-              ),
+              _buildOwnershipSelector(),
               const SizedBox(height: 16),
 
               // Permissions
@@ -231,6 +230,65 @@ class _LandFormPageState extends State<LandFormPage> {
     );
   }
 
+  Widget _buildOwnershipSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ownership Type',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select the ownership type',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: _ownershipTypes.map((ownership) {
+            final isSelected = _selectedOwnership == ownership;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedOwnership = ownership;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isSelected 
+                        ? AppTheme.primaryColor 
+                        : Colors.grey[200],
+                    foregroundColor: isSelected 
+                        ? Colors.white 
+                        : AppTheme.textPrimary,
+                    elevation: isSelected ? 2 : 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    ownership.toUpperCase(),
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPermissionSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,37 +340,6 @@ class _LandFormPageState extends State<LandFormPage> {
               ),
             ),
           ),
-        const SizedBox(height: 32),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isSubmitting ? null : _submitForm,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: _isSubmitting
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Text(
-                    'Submit Listing',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-          ),
-        ),
       ],
     );
   }
@@ -333,21 +360,78 @@ class _LandFormPageState extends State<LandFormPage> {
       _isSubmitting = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Get current user
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
 
-    setState(() {
-      _isSubmitting = false;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Land listing submitted successfully! It will be reviewed by our team.'),
-          backgroundColor: AppTheme.successColor,
+      // Create the land listing with only essential fields
+      final listing = LandListing(
+        id: '', // Will be set by Firestore
+        sellerId: currentUser.id,
+        sellerName: currentUser.name,
+        location: _locationController.text.trim(),
+        area: _areaController.text.trim(),
+        landSize: double.parse(_landSizeController.text.trim()),
+        gfa: double.parse(_gfaController.text.trim()),
+        askingPrice: double.parse(_priceController.text.trim()),
+        ownershipType: OwnershipType.values.firstWhere(
+          (e) => e.toString().split('.').last == _selectedOwnership,
+          orElse: () => OwnershipType.freehold,
         ),
+        permissions: _selectedPermissions.map((p) => PermissionType.values.firstWhere(
+          (e) => e.toString().split('.').last == p,
+          orElse: () => PermissionType.residential,
+        )).toList(),
+        photoUrls: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        title: _locationController.text.trim(),
+        description: _notesController.text.trim(),
+        city: _areaController.text.trim(),
+        state: _areaController.text.trim(),
+        zipCode: '',
+        zoning: '',
+        developmentPermissions: _selectedPermissions,
+        // Override defaults to ensure correct values
+        listingType: ListingType.both,
+        isActive: false,
+        isVerified: false,
+        notes: _notesController.text.trim(),
       );
-      context.go('/seller');
+
+      // Save to Firebase
+      await _landListingService.createListing(listing);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Land listing submitted successfully! It will be reviewed by our team.'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+        context.go('/seller');
+      }
+    } catch (e) {
+      print('Error creating listing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating listing: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 }

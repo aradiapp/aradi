@@ -3,18 +3,23 @@ import 'package:aradi/core/models/negotiation.dart';
 import 'package:aradi/core/models/offer.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
+import 'package:aradi/core/services/negotiation_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class InboxPage extends StatefulWidget {
+class InboxPage extends ConsumerStatefulWidget {
   const InboxPage({super.key});
 
   @override
-  State<InboxPage> createState() => _InboxPageState();
+  ConsumerState<InboxPage> createState() => _InboxPageState();
 }
 
-class _InboxPageState extends State<InboxPage> {
+class _InboxPageState extends ConsumerState<InboxPage> {
   List<Negotiation> _negotiations = [];
   bool _isLoading = true;
   String _selectedFilter = 'all';
+  final NegotiationService _negotiationService = NegotiationService();
 
   @override
   void initState() {
@@ -27,11 +32,47 @@ class _InboxPageState extends State<InboxPage> {
       _isLoading = true;
     });
 
-    // Load negotiations from Firebase (no mock data)
-    setState(() {
-      _negotiations = <Negotiation>[]; // Will be loaded from Firebase
-      _isLoading = false;
-    });
+    try {
+      // Get current user
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Determine user role
+      String userRole = 'developer'; // Default
+      if (currentUser.role.toString().contains('seller')) {
+        userRole = 'seller';
+      } else if (currentUser.role.toString().contains('buyer')) {
+        userRole = 'buyer';
+      }
+
+      // Load negotiations from Firebase
+      final negotiations = await _negotiationService.getNegotiationsForUser(
+        currentUser.id, 
+        userRole
+      );
+      
+      setState(() {
+        _negotiations = negotiations;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading negotiations: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading negotiations: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   List<Negotiation> _createDemoNegotiations() {
@@ -304,6 +345,11 @@ class _InboxPageState extends State<InboxPage> {
         color = Colors.blue;
         icon = Icons.send;
         text = 'Sent';
+        break;
+      case OfferStatus.pending:
+        color = Colors.amber;
+        icon = Icons.schedule;
+        text = 'Pending';
         break;
       case OfferStatus.countered:
         color = Colors.orange;

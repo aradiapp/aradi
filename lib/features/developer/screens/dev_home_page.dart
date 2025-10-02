@@ -6,6 +6,7 @@ import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/matching_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 
 class DevHomePage extends ConsumerStatefulWidget {
@@ -17,7 +18,7 @@ class DevHomePage extends ConsumerStatefulWidget {
 
 class _DevHomePageState extends ConsumerState<DevHomePage> {
   List<LandListing> _filteredListings = [];
-  String _selectedFilter = 'All';
+  final LandListingService _landListingService = LandListingService();
 
   @override
   void initState() {
@@ -36,8 +37,8 @@ class _DevHomePageState extends ConsumerState<DevHomePage> {
         final developerProfile = await ref.read(developerProfileProvider(currentUser.id).future);
         
         if (developerProfile != null) {
-          // Get all listings
-          final listings = await ref.read(allListingsProvider.future);
+          // Get active listings using new service
+          final listings = await _landListingService.getActiveListings();
           
           // Sort by matching score
           final sortedListings = MatchingService.sortByMatchingScore(listings, developerProfile);
@@ -48,45 +49,11 @@ class _DevHomePageState extends ConsumerState<DevHomePage> {
         }
       }
       
-      // Apply initial filter
-      _applyFilter(_selectedFilter);
     } catch (e) {
       print('Error loading data: $e');
     }
   }
 
-  void _applyFilter(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-      
-      // Get all listings from provider
-      ref.read(allListingsProvider.future).then((listings) {
-        if (filter == 'All') {
-          _filteredListings = listings;
-        } else if (filter == 'Dubai Marina') {
-          _filteredListings = listings.where((listing) => 
-            listing.location.toLowerCase().contains('dubai marina') ||
-            listing.area.toLowerCase().contains('dubai marina')
-          ).toList();
-        } else if (filter == 'Palm Jumeirah') {
-          _filteredListings = listings.where((listing) => 
-            listing.location.toLowerCase().contains('palm jumeirah') ||
-            listing.area.toLowerCase().contains('palm jumeirah')
-          ).toList();
-        } else if (filter == 'Residential') {
-          _filteredListings = listings.where((listing) => 
-            listing.permissions.contains(PermissionType.residential)
-          ).toList();
-        } else if (filter == 'Commercial') {
-          _filteredListings = listings.where((listing) => 
-            listing.permissions.contains(PermissionType.commercial)
-          ).toList();
-        } else {
-          _filteredListings = listings;
-        }
-      });
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +90,6 @@ class _DevHomePageState extends ConsumerState<DevHomePage> {
               const SizedBox(height: 24),
               
               // Filters
-              _buildFilters(),
               const SizedBox(height: 24),
               
               // Listings Feed
@@ -237,57 +203,6 @@ class _DevHomePageState extends ConsumerState<DevHomePage> {
     );
   }
 
-  Widget _buildFilters() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Filters',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _FilterChip(
-                label: 'All',
-                isSelected: _selectedFilter == 'All',
-                onTap: () => _applyFilter('All'),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Dubai Marina',
-                isSelected: _selectedFilter == 'Dubai Marina',
-                onTap: () => _applyFilter('Dubai Marina'),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Palm Jumeirah',
-                isSelected: _selectedFilter == 'Palm Jumeirah',
-                onTap: () => _applyFilter('Palm Jumeirah'),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Residential',
-                isSelected: _selectedFilter == 'Residential',
-                onTap: () => _applyFilter('Residential'),
-              ),
-              const SizedBox(width: 8),
-              _FilterChip(
-                label: 'Commercial',
-                isSelected: _selectedFilter == 'Commercial',
-                onTap: () => _applyFilter('Commercial'),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildListingsFeed(List<LandListing> listings) {
     return Column(
@@ -389,41 +304,6 @@ class _StatPill extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary.withOpacity(0.3),
-          ),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: isSelected ? Colors.white : AppTheme.textSecondary,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _LandListingCard extends StatelessWidget {
   final LandListing listing;

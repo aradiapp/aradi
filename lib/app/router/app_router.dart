@@ -19,6 +19,7 @@ import 'package:aradi/features/buyer/screens/buyer_profile_page.dart';
 import 'package:aradi/features/buyer/screens/buyer_profile_edit_page.dart';
 import 'package:aradi/features/seller/screens/seller_home_page.dart';
 import 'package:aradi/features/seller/screens/land_form_page.dart';
+import 'package:aradi/features/seller/screens/seller_land_listing_page.dart';
 import 'package:aradi/features/seller/screens/seller_dev_browser_page.dart';
 import 'package:aradi/features/seller/screens/seller_profile_page.dart';
 import 'package:aradi/features/seller/screens/seller_profile_edit_page.dart';
@@ -157,6 +158,16 @@ class AppRouter {
           userRole: UserRole.seller,
           child: const LandFormPage(),
         ),
+      ),
+      GoRoute(
+        path: '/seller/listing/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return MainNavigation(
+            userRole: UserRole.seller,
+            child: SellerLandListingPage(listingId: id),
+          );
+        },
       ),
       GoRoute(
         path: '/seller/developers',

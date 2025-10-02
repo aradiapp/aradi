@@ -32,14 +32,18 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
     try {
       final authService = ref.read(authServiceProvider);
       final users = await authService.getPendingKycUsers();
-      setState(() {
-        _pendingUsers = users;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _pendingUsers = users;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -165,7 +169,7 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   itemCount: _pendingUsers.length,
                   itemBuilder: (context, index) {
                     final user = _pendingUsers[index];

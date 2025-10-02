@@ -10,9 +10,8 @@ class FirestoreListingRepository implements ListingRepository {
   Future<List<LandListing>> getAllListings() async {
     try {
       final snapshot = await _firestore
-          .collection('listings')
-          .where('status', isEqualTo: 'active')
-          .orderBy('createdAt', descending: true)
+          .collection('land_listings')
+          .where('isActive', isEqualTo: true)
           .get();
       
       return snapshot.docs.map((doc) {
@@ -30,9 +29,8 @@ class FirestoreListingRepository implements ListingRepository {
   Future<List<LandListing>> getListingsBySeller(String sellerId) async {
     try {
       final snapshot = await _firestore
-          .collection('listings')
+          .collection('land_listings')
           .where('sellerId', isEqualTo: sellerId)
-          .orderBy('createdAt', descending: true)
           .get();
       
       return snapshot.docs.map((doc) {
@@ -49,7 +47,7 @@ class FirestoreListingRepository implements ListingRepository {
   @override
   Future<LandListing?> getListingById(String listingId) async {
     try {
-      final doc = await _firestore.collection('listings').doc(listingId).get();
+      final doc = await _firestore.collection('land_listings').doc(listingId).get();
       if (!doc.exists) return null;
       
       final data = doc.data()!;
@@ -64,7 +62,7 @@ class FirestoreListingRepository implements ListingRepository {
   @override
   Future<LandListing> createListing(LandListing listing) async {
     try {
-      final docRef = await _firestore.collection('listings').add(listing.toJson());
+      final docRef = await _firestore.collection('land_listings').add(listing.toJson());
       return listing.copyWith(id: docRef.id);
     } catch (e) {
       print('Error creating listing: $e');
@@ -75,7 +73,7 @@ class FirestoreListingRepository implements ListingRepository {
   @override
   Future<LandListing> updateListing(LandListing listing) async {
     try {
-      await _firestore.collection('listings').doc(listing.id).update(listing.toJson());
+      await _firestore.collection('land_listings').doc(listing.id).update(listing.toJson());
       return listing;
     } catch (e) {
       print('Error updating listing: $e');
@@ -86,7 +84,7 @@ class FirestoreListingRepository implements ListingRepository {
   @override
   Future<void> deleteListing(String listingId) async {
     try {
-      await _firestore.collection('listings').doc(listingId).delete();
+      await _firestore.collection('land_listings').doc(listingId).delete();
     } catch (e) {
       print('Error deleting listing: $e');
       rethrow;
@@ -103,7 +101,7 @@ class FirestoreListingRepository implements ListingRepository {
     OwnershipType? ownershipType,
   }) async {
     try {
-      Query query = _firestore.collection('listings').where('status', isEqualTo: 'active');
+      Query query = _firestore.collection('land_listings').where('isActive', isEqualTo: true);
 
       if (location != null && location.isNotEmpty) {
         query = query.where('location', isEqualTo: location);
@@ -125,7 +123,7 @@ class FirestoreListingRepository implements ListingRepository {
         query = query.where('ownershipType', isEqualTo: ownershipType.toString().split('.').last);
       }
 
-      final snapshot = await query.orderBy('createdAt', descending: true).get();
+      final snapshot = await query.get();
       
       return snapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
@@ -144,7 +142,6 @@ class FirestoreListingRepository implements ListingRepository {
       final snapshot = await _firestore
           .collection('offers')
           .where('listingId', isEqualTo: listingId)
-          .orderBy('createdAt', descending: true)
           .get();
       
       return snapshot.docs.map((doc) {
@@ -164,7 +161,6 @@ class FirestoreListingRepository implements ListingRepository {
       final snapshot = await _firestore
           .collection('offers')
           .where('developerId', isEqualTo: developerId)
-          .orderBy('createdAt', descending: true)
           .get();
       
       return snapshot.docs.map((doc) {
@@ -213,7 +209,7 @@ class FirestoreListingRepository implements ListingRepository {
   @override
   Future<void> updateListingStatus(String listingId, ListingStatus status) async {
     try {
-      await _firestore.collection('listings').doc(listingId).update({
+      await _firestore.collection('land_listings').doc(listingId).update({
         'status': status.toString().split('.').last,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -226,8 +222,8 @@ class FirestoreListingRepository implements ListingRepository {
   @override
   Future<void> verifyListing(String listingId, String verifiedBy) async {
     try {
-      await _firestore.collection('listings').doc(listingId).update({
-        'status': 'active',
+      await _firestore.collection('land_listings').doc(listingId).update({
+        'isActive': true,
         'verifiedAt': FieldValue.serverTimestamp(),
         'verifiedBy': verifiedBy,
         'updatedAt': FieldValue.serverTimestamp(),

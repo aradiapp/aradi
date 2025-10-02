@@ -4,12 +4,64 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/core/models/seller_profile.dart';
+import 'package:aradi/core/models/land_listing.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
 
-class SellerProfilePage extends ConsumerWidget {
+class SellerProfilePage extends ConsumerStatefulWidget {
   const SellerProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SellerProfilePage> createState() => _SellerProfilePageState();
+}
+
+class _SellerProfilePageState extends ConsumerState<SellerProfilePage> {
+  List<LandListing> _myListings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Load seller's listings (exclude rejected ones)
+      final landListingService = LandListingService();
+      final allListings = await landListingService.getListingsBySeller(currentUser.id);
+      _myListings = allListings.where((listing) => listing.status != ListingStatus.rejected).toList();
+    } catch (e) {
+      print('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentUserAsync = ref.watch(authStateProvider);
 
     return Scaffold(
@@ -38,30 +90,32 @@ class SellerProfilePage extends ConsumerWidget {
           ),
         ],
       ),
-      body: currentUserAsync.when(
-        data: (user) {
-          if (user == null) {
-            return const Center(
-              child: Text('User not authenticated. Please sign in.'),
-            );
-          }
-          final sellerProfileAsync = ref.watch(sellerProfileProvider(user.id));
-          return sellerProfileAsync.when(
-            data: (profile) {
-              if (profile == null) {
-                return const Center(
-                  child: Text('No seller profile found. Please complete your KYC first.'),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : currentUserAsync.when(
+              data: (user) {
+                if (user == null) {
+                  return const Center(
+                    child: Text('User not authenticated. Please sign in.'),
+                  );
+                }
+                final sellerProfileAsync = ref.watch(sellerProfileProvider(user.id));
+                return sellerProfileAsync.when(
+                  data: (profile) {
+                    if (profile == null) {
+                      return const Center(
+                        child: Text('No seller profile found. Please complete your KYC first.'),
+                      );
+                    }
+                    return _buildProfileContent(context, profile);
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Center(child: Text('Error: $error')),
                 );
-              }
-              return _buildProfileContent(context, profile);
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stack) => Center(child: Text('Error: $error')),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('Error: $error')),
-      ),
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stack) => Center(child: Text('Error: $error')),
+            ),
     );
   }
 
@@ -187,6 +241,12 @@ class SellerProfilePage extends ConsumerWidget {
   }
 
   Widget _buildListingStats(BuildContext context, SellerProfile profile) {
+    // Calculate real-time statistics
+    final totalListings = _myListings.length;
+    final activeListings = _myListings.where((l) => l.isVerified).length;
+    final pendingListings = _myListings.where((l) => !l.isVerified).length;
+    final completedDeals = _myListings.where((l) => l.status == ListingStatus.sold).length;
+    
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -206,10 +266,10 @@ class SellerProfilePage extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatItem(context, 'Total Listings', profile.totalListings.toString()),
+                  child: _buildStatItem(context, 'Total Listings', totalListings.toString()),
                 ),
                 Expanded(
-                  child: _buildStatItem(context, 'Active Listings', profile.activeListings.toString()),
+                  child: _buildStatItem(context, 'Active Listings', activeListings.toString()),
                 ),
               ],
             ),
@@ -217,12 +277,27 @@ class SellerProfilePage extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatItem(context, 'Completed Deals', profile.completedDeals.toString()),
+                  child: _buildStatItem(context, 'Pending Listings', pendingListings.toString()),
                 ),
                 Expanded(
+                  child: _buildStatItem(context, 'Completed Deals', completedDeals.toString()),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
                   child: _buildStatItem(context, 'Success Rate', 
-                    profile.totalListings > 0 
-                      ? '${((profile.completedDeals / profile.totalListings) * 100).toStringAsFixed(1)}%'
+                    totalListings > 0 
+                      ? '${((completedDeals / totalListings) * 100).toStringAsFixed(1)}%'
+                      : '0%'
+                  ),
+                ),
+                Expanded(
+                  child: _buildStatItem(context, 'Active Rate', 
+                    totalListings > 0 
+                      ? '${((activeListings / totalListings) * 100).toStringAsFixed(1)}%'
                       : '0%'
                   ),
                 ),

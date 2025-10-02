@@ -215,7 +215,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute == '/dev') return 'Developer Dashboard';
     if (currentRoute == '/buyer') return 'Buyer Dashboard';
     if (currentRoute == '/seller') return 'Seller Dashboard';
-    if (currentRoute == '/admin') return 'Admin Dashboard';
+    if (currentRoute == '/admin') return '';
+    if (currentRoute == '/admin/verification') return '';
+    if (currentRoute == '/admin/settings') return '';
+    if (currentRoute == '/admin/contract-queue') return '';
     if (currentRoute.contains('/browse')) return 'Browse Listings';
     return AppConfig.appName;
   }

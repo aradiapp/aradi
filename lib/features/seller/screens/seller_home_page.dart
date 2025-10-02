@@ -3,18 +3,25 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/models/offer.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:aradi/core/services/offer_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class SellerHomePage extends StatefulWidget {
+class SellerHomePage extends ConsumerStatefulWidget {
   const SellerHomePage({super.key});
 
   @override
-  State<SellerHomePage> createState() => _SellerHomePageState();
+  ConsumerState<SellerHomePage> createState() => _SellerHomePageState();
 }
 
-class _SellerHomePageState extends State<SellerHomePage> {
+class _SellerHomePageState extends ConsumerState<SellerHomePage> {
   List<LandListing> _myListings = [];
   List<Offer> _offers = [];
   bool _isLoading = true;
+  final LandListingService _landListingService = LandListingService();
+  final OfferService _offerService = OfferService();
 
   @override
   void initState() {
@@ -28,21 +35,36 @@ class _SellerHomePageState extends State<SellerHomePage> {
     });
 
     try {
-      // Load seller's listings
-      _myListings = <LandListing>[] // No mock data - will be loaded from Firebase
-          .where((listing) => listing.sellerId == 'seller1')
-          .toList();
+      // Get current user
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Load seller's listings (exclude rejected ones)
+      final allListings = await _landListingService.getListingsBySeller(currentUser.id);
+      _myListings = allListings.where((listing) => listing.status != ListingStatus.rejected).toList();
 
       // Load offers for seller's listings
-      _offers = <Offer>[] // No mock data - will be loaded from Firebase
-          .where((offer) => _myListings.any((listing) => listing.id == offer.listingId))
-          .toList();
+      _offers = await _offerService.getOffersForSeller(currentUser.id);
     } catch (e) {
       print('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -262,7 +284,7 @@ class _SellerHomePageState extends State<SellerHomePage> {
                 child: _ListingCard(
                   listing: listing,
                   offerCount: listingOffers.length,
-                  onTap: () => context.go('/dev/listing/${listing.id}'),
+                  onTap: () => context.go('/seller/listing/${listing.id}'),
                 ),
               );
             },
@@ -595,15 +617,15 @@ class _ListingCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: listing.isActive 
+                      color: listing.isVerified 
                           ? AppTheme.successColor.withOpacity(0.1)
                           : AppTheme.warningColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      listing.isActive ? 'Active' : 'Pending',
+                      listing.isVerified ? 'Active' : 'Pending',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: listing.isActive 
+                        color: listing.isVerified 
                             ? AppTheme.successColor
                             : AppTheme.warningColor,
                         fontWeight: FontWeight.bold,
@@ -698,9 +720,9 @@ class _OfferCard extends StatelessWidget {
                         color: AppTheme.textSecondary,
                       ),
                     ),
-                    if (offer.buyAmount != null)
+                    if (offer.buyPrice != null)
                       Text(
-                        'AED ${(offer.buyAmount! / 1000000).toStringAsFixed(1)}M',
+                        'AED ${(offer.buyPrice! / 1000000).toStringAsFixed(1)}M',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppTheme.successColor,
                           fontWeight: FontWeight.w600,
@@ -733,6 +755,8 @@ class _OfferCard extends StatelessWidget {
   Color _getStatusColor(OfferStatus status) {
     switch (status) {
       case OfferStatus.sent:
+        return AppTheme.warningColor;
+      case OfferStatus.pending:
         return AppTheme.warningColor;
       case OfferStatus.countered:
         return AppTheme.primaryColor;

@@ -81,7 +81,7 @@ class _ThreadPageState extends State<ThreadPage> {
             developerId: 'dev1',
             developerName: 'Ahmed Al Mansouri',
             type: OfferType.buy,
-            buyAmount: 2500000,
+            buyPrice: 2500000,
             status: OfferStatus.sent,
             notes: 'This is a competitive offer based on current market conditions.',
             createdAt: DateTime.now().subtract(const Duration(hours: 6)),
@@ -194,7 +194,7 @@ class _ThreadPageState extends State<ThreadPage> {
       developerId: 'dev1',
       developerName: 'Ahmed Al Mansouri',
       type: OfferType.buy,
-      buyAmount: double.parse(_offerAmountController.text),
+      buyPrice: double.parse(_offerAmountController.text),
       status: OfferStatus.sent,
       notes: _offerNotesController.text.trim(),
       createdAt: DateTime.now(),
@@ -325,6 +325,11 @@ class _ThreadPageState extends State<ThreadPage> {
         statusColor = AppTheme.primaryColor;
         statusText = 'Offer Sent';
         statusIcon = Icons.send;
+        break;
+      case OfferStatus.pending:
+        statusColor = AppTheme.warningColor;
+        statusText = 'Offer Pending';
+        statusIcon = Icons.schedule;
         break;
       case OfferStatus.countered:
         statusColor = AppTheme.warningColor;
@@ -561,7 +566,7 @@ class _ThreadPageState extends State<ThreadPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'AED ${(offer.buyAmount! / 1000000).toStringAsFixed(1)}M',
+            'AED ${(offer.buyPrice! / 1000000).toStringAsFixed(1)}M',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: AppTheme.primaryColor,
               fontWeight: FontWeight.bold,

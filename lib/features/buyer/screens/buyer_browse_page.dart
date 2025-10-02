@@ -2,19 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BuyerBrowsePage extends StatefulWidget {
+class BuyerBrowsePage extends ConsumerStatefulWidget {
   const BuyerBrowsePage({super.key});
 
   @override
-  State<BuyerBrowsePage> createState() => _BuyerBrowsePageState();
+  ConsumerState<BuyerBrowsePage> createState() => _BuyerBrowsePageState();
 }
 
-class _BuyerBrowsePageState extends State<BuyerBrowsePage> {
+class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
   List<LandListing> _listings = [];
   List<LandListing> _filteredListings = [];
   bool _isLoading = true;
   String _selectedFilter = 'All';
+  final LandListingService _landListingService = LandListingService();
 
   @override
   void initState() {
@@ -29,20 +34,32 @@ class _BuyerBrowsePageState extends State<BuyerBrowsePage> {
 
     try {
       // Load active listings for buyers (excluding JV-only listings)
-      final listings = <LandListing>[] // No mock data - will be loaded from Firebase
-          .where((listing) => listing.isActive)
-          .toList();
+      final listings = await _landListingService.getActiveListings();
       
-      _listings = listings;
+      // Filter out JV-only listings for buyers
+      _listings = listings.where((listing) => 
+        listing.isActive && 
+        listing.listingType != ListingType.jvOnly
+      ).toList();
       
       // Apply initial filter
       _applyFilter(_selectedFilter);
     } catch (e) {
       print('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading listings: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

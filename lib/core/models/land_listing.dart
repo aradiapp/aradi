@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum OwnershipType { freehold, leasehold, gcc }
 enum PermissionType { residential, commercial, hotel, mix }
-enum ListingStatus { pending_verification, active, sold, expired }
+enum ListingStatus { pending_verification, active, sold, expired, rejected }
+enum ListingType { buy, jv, both, jvOnly }
 
 class LandListing {
   final String id;
@@ -32,6 +33,11 @@ class LandListing {
   final String zipCode;
   final List<String> developmentPermissions;
   final String zoning;
+  final ListingType listingType;
+  final bool isActive;
+  final bool isVerified;
+  final List<String> photos;
+  final String notes;
 
   const LandListing({
     required this.id,
@@ -59,6 +65,11 @@ class LandListing {
     required this.zipCode,
     required this.developmentPermissions,
     required this.zoning,
+    this.listingType = ListingType.both,
+    this.isActive = true,
+    this.isVerified = false,
+    this.photos = const [],
+    this.notes = '',
   });
 
   factory LandListing.fromJson(Map<String, dynamic> json) {
@@ -109,6 +120,16 @@ class LandListing {
           ?.map((e) => e as String)
           .toList() ?? ['Residential', 'Commercial'],
       zoning: json['zoning'] as String? ?? 'Mixed Use',
+      listingType: ListingType.values.firstWhere(
+        (e) => e.toString().split('.').last == json['listingType'],
+        orElse: () => ListingType.both,
+      ),
+      isActive: json['isActive'] as bool? ?? true,
+      isVerified: json['isVerified'] as bool? ?? false,
+      photos: (json['photos'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [],
+      notes: json['notes'] as String? ?? '',
     );
   }
 
@@ -141,6 +162,11 @@ class LandListing {
       'zipCode': zipCode,
       'developmentPermissions': developmentPermissions,
       'zoning': zoning,
+      'listingType': listingType.toString().split('.').last,
+      'isActive': isActive,
+      'isVerified': isVerified,
+      'photos': photos,
+      'notes': notes,
     };
   }
 
@@ -170,6 +196,11 @@ class LandListing {
     String? zipCode,
     List<String>? developmentPermissions,
     String? zoning,
+    ListingType? listingType,
+    bool? isActive,
+    bool? isVerified,
+    List<String>? photos,
+    String? notes,
   }) {
     return LandListing(
       id: id ?? this.id,
@@ -197,11 +228,16 @@ class LandListing {
       zipCode: zipCode ?? this.zipCode,
       developmentPermissions: developmentPermissions ?? this.developmentPermissions,
       zoning: zoning ?? this.zoning,
+      listingType: listingType ?? this.listingType,
+      isActive: isActive ?? this.isActive,
+      isVerified: isVerified ?? this.isVerified,
+      photos: photos ?? this.photos,
+      notes: notes ?? this.notes,
     );
   }
 
   // Business Logic Methods
-  bool get isActive => status == ListingStatus.active;
+  bool get isActiveStatus => status == ListingStatus.active;
   bool get isPendingVerification => status == ListingStatus.pending_verification;
   bool get isSold => status == ListingStatus.sold;
   bool get isExpired => status == ListingStatus.expired;

@@ -417,7 +417,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       itemCount: _pendingListings.length,
       itemBuilder: (context, index) {
         final listing = _pendingListings[index];
@@ -436,7 +436,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       itemCount: _pendingDevelopers.length,
       itemBuilder: (context, index) {
         final developer = _pendingDevelopers[index];
@@ -455,7 +455,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       itemCount: _pendingDeals.length,
       itemBuilder: (context, index) {
         final deal = _pendingDeals[index];

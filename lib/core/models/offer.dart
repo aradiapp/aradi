@@ -1,49 +1,49 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum OfferType { buy, jv, both }
-enum OfferStatus { sent, countered, accepted, rejected }
+enum OfferStatus { sent, pending, countered, accepted, rejected }
 
 class JVProposal {
-  final String developerId;
-  final String developerName;
-  final double percentage;
+  final double sellerPercentage;
+  final double developerPercentage;
+  final double investmentAmount;
   final String? notes;
 
   const JVProposal({
-    required this.developerId,
-    required this.developerName,
-    required this.percentage,
+    required this.sellerPercentage,
+    required this.developerPercentage,
+    required this.investmentAmount,
     this.notes,
   });
 
   factory JVProposal.fromJson(Map<String, dynamic> json) {
     return JVProposal(
-      developerId: json['developerId'] as String,
-      developerName: json['developerName'] as String,
-      percentage: (json['percentage'] as num).toDouble(),
+      sellerPercentage: (json['sellerPercentage'] as num).toDouble(),
+      developerPercentage: (json['developerPercentage'] as num).toDouble(),
+      investmentAmount: (json['investmentAmount'] as num).toDouble(),
       notes: json['notes'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'developerId': developerId,
-      'developerName': developerName,
-      'percentage': percentage,
+      'sellerPercentage': sellerPercentage,
+      'developerPercentage': developerPercentage,
+      'investmentAmount': investmentAmount,
       'notes': notes,
     };
   }
 
   JVProposal copyWith({
-    String? developerId,
-    String? developerName,
-    double? percentage,
+    double? sellerPercentage,
+    double? developerPercentage,
+    double? investmentAmount,
     String? notes,
   }) {
     return JVProposal(
-      developerId: developerId ?? this.developerId,
-      developerName: developerName ?? this.developerName,
-      percentage: percentage ?? this.percentage,
+      sellerPercentage: sellerPercentage ?? this.sellerPercentage,
+      developerPercentage: developerPercentage ?? this.developerPercentage,
+      investmentAmount: investmentAmount ?? this.investmentAmount,
       notes: notes ?? this.notes,
     );
   }
@@ -52,7 +52,7 @@ class JVProposal {
   static bool validateSumIs100(List<JVProposal> proposals) {
     final total = proposals.fold<double>(
       0.0,
-      (sum, proposal) => sum + proposal.percentage,
+      (sum, proposal) => sum + proposal.sellerPercentage + proposal.developerPercentage,
     );
     return (total - 100.0).abs() < 0.01; // Allow for floating point precision
   }
@@ -60,15 +60,17 @@ class JVProposal {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is JVProposal && other.developerId == developerId;
+    return other is JVProposal && 
+           other.sellerPercentage == sellerPercentage &&
+           other.developerPercentage == developerPercentage;
   }
 
   @override
-  int get hashCode => developerId.hashCode;
+  int get hashCode => sellerPercentage.hashCode ^ developerPercentage.hashCode;
 
   @override
   String toString() {
-    return 'JVProposal(developer: $developerName, percentage: $percentage%)';
+    return 'JVProposal(seller: ${sellerPercentage}%, developer: ${developerPercentage}%)';
   }
 }
 
@@ -78,8 +80,8 @@ class Offer {
   final String developerId;
   final String developerName;
   final OfferType type;
-  final double? buyAmount; // Required for buy offers
-  final List<JVProposal>? jvProposals; // Required for JV offers
+  final double? buyPrice; // Required for buy offers
+  final JVProposal? jvProposal; // Required for JV offers
   final OfferStatus status;
   final String? notes;
   final DateTime createdAt;
@@ -93,8 +95,8 @@ class Offer {
     required this.developerId,
     required this.developerName,
     required this.type,
-    this.buyAmount,
-    this.jvProposals,
+    this.buyPrice,
+    this.jvProposal,
     this.status = OfferStatus.sent,
     this.notes,
     required this.createdAt,
@@ -113,13 +115,11 @@ class Offer {
         (e) => e.toString().split('.').last == json['type'],
         orElse: () => OfferType.buy,
       ),
-      buyAmount: json['buyAmount'] != null
-          ? (json['buyAmount'] as num).toDouble()
+      buyPrice: json['buyPrice'] != null
+          ? (json['buyPrice'] as num).toDouble()
           : null,
-      jvProposals: json['jvProposals'] != null
-          ? (json['jvProposals'] as List<dynamic>)
-              .map((e) => JVProposal.fromJson(e as Map<String, dynamic>))
-              .toList()
+      jvProposal: json['jvProposal'] != null
+          ? JVProposal.fromJson(json['jvProposal'] as Map<String, dynamic>)
           : null,
       status: OfferStatus.values.firstWhere(
         (e) => e.toString().split('.').last == json['status'],
@@ -142,8 +142,8 @@ class Offer {
       'developerId': developerId,
       'developerName': developerName,
       'type': type.toString().split('.').last,
-      'buyAmount': buyAmount,
-      'jvProposals': jvProposals?.map((e) => e.toJson()).toList(),
+      'buyPrice': buyPrice,
+      'jvProposal': jvProposal?.toJson(),
       'status': status.toString().split('.').last,
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -159,8 +159,8 @@ class Offer {
     String? developerId,
     String? developerName,
     OfferType? type,
-    double? buyAmount,
-    List<JVProposal>? jvProposals,
+    double? buyPrice,
+    JVProposal? jvProposal,
     OfferStatus? status,
     String? notes,
     DateTime? createdAt,
@@ -174,8 +174,8 @@ class Offer {
       developerId: developerId ?? this.developerId,
       developerName: developerName ?? this.developerName,
       type: type ?? this.type,
-      buyAmount: buyAmount ?? this.buyAmount,
-      jvProposals: jvProposals ?? this.jvProposals,
+      buyPrice: buyPrice ?? this.buyPrice,
+      jvProposal: jvProposal ?? this.jvProposal,
       status: status ?? this.status,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
@@ -195,16 +195,11 @@ class Offer {
   bool get isValid {
     switch (type) {
       case OfferType.buy:
-        return buyAmount != null;
+        return buyPrice != null;
       case OfferType.jv:
-        return jvProposals != null && 
-               jvProposals!.isNotEmpty && 
-               JVProposal.validateSumIs100(jvProposals!);
+        return jvProposal != null;
       case OfferType.both:
-        return buyAmount != null && 
-               jvProposals != null && 
-               jvProposals!.isNotEmpty && 
-               JVProposal.validateSumIs100(jvProposals!);
+        return buyPrice != null && jvProposal != null;
     }
   }
 

@@ -3,17 +3,24 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/models/user.dart';
+import 'package:aradi/core/models/offer.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:aradi/core/services/offer_service.dart';
+import 'package:aradi/core/services/negotiation_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ListingDetailPage extends StatefulWidget {
+class ListingDetailPage extends ConsumerStatefulWidget {
   final String listingId;
 
   const ListingDetailPage({super.key, required this.listingId});
 
   @override
-  State<ListingDetailPage> createState() => _ListingDetailPageState();
+  ConsumerState<ListingDetailPage> createState() => _ListingDetailPageState();
 }
 
-class _ListingDetailPageState extends State<ListingDetailPage> {
+class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   LandListing? _listing;
   bool _isLoading = true;
   bool _isSubmittingOffer = false;
@@ -27,6 +34,11 @@ class _ListingDetailPageState extends State<ListingDetailPage> {
   final _jvEquityController = TextEditingController();
   final _jvInvestmentController = TextEditingController();
   final _jvNotesController = TextEditingController();
+  
+  // Services
+  final LandListingService _landListingService = LandListingService();
+  final OfferService _offerService = OfferService();
+  final NegotiationService _negotiationService = NegotiationService();
 
   @override
   void initState() {
@@ -45,20 +57,33 @@ class _ListingDetailPageState extends State<ListingDetailPage> {
   }
 
   Future<void> _loadListing() async {
-    // Simulate loading listing data
-    await Future.delayed(const Duration(seconds: 1));
-    
-    // Find the listing by ID from mock data
-    final listings = <LandListing>[]; // No mock data - will be loaded from Firebase
-    final listing = listings.firstWhere(
-      (l) => l.id == widget.listingId,
-      orElse: () => listings.first, // Fallback to first listing
-    );
-    
     setState(() {
-      _listing = listing;
-      _isLoading = false;
+      _isLoading = true;
     });
+
+    try {
+      final listing = await _landListingService.getListingById(widget.listingId);
+      
+      if (listing == null) {
+        throw Exception('Listing not found');
+      }
+      
+      setState(() {
+        _listing = listing;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading listing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading listing: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+        context.go('/dev');
+      }
+    }
   }
 
   @override
@@ -667,21 +692,67 @@ class _ListingDetailPageState extends State<ListingDetailPage> {
       _isSubmittingOffer = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Get current user
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
 
-    setState(() {
-      _isSubmittingOffer = false;
-    });
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Offer submitted successfully!'),
-          backgroundColor: AppTheme.successColor,
-        ),
+      // Create the offer
+      final offer = Offer(
+        id: '', // Will be set by Firestore
+        listingId: widget.listingId,
+        developerId: currentUser.id,
+        developerName: currentUser.name,
+        type: OfferType.buy,
+        buyPrice: double.parse(_offerAmountController.text.trim()),
+        status: OfferStatus.pending,
+        notes: _offerNotesController.text.trim(),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
+
+      // Save offer to Firebase
+      await _offerService.createOffer(offer);
+
+      // Create negotiation thread
+      await _negotiationService.createNegotiation(
+        listingId: widget.listingId,
+        developerId: currentUser.id,
+        developerName: currentUser.name,
+        listingTitle: _listing!.location,
+        sellerId: _listing!.sellerId,
+        sellerName: 'Seller', // TODO: Get actual seller name
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offer submitted successfully!'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error submitting offer: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting offer: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingOffer = false;
+        });
+      }
     }
   }
 
@@ -700,21 +771,84 @@ class _ListingDetailPageState extends State<ListingDetailPage> {
       _isSubmittingJV = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Get current user
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
 
-    setState(() {
-      _isSubmittingJV = false;
-    });
+      // Parse JV percentages
+      final sellerPercentage = double.parse(_jvEquityController.text.trim());
+      final developerPercentage = double.parse(_jvInvestmentController.text.trim());
+      
+      // Validate percentages sum to 100%
+      if (sellerPercentage + developerPercentage != 100.0) {
+        throw Exception('Partnership percentages must sum to 100%');
+      }
 
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('JV proposal submitted successfully!'),
-          backgroundColor: AppTheme.successColor,
-        ),
+      // Create JV proposal
+      final jvProposal = JVProposal(
+        sellerPercentage: sellerPercentage,
+        developerPercentage: developerPercentage,
+        investmentAmount: double.parse(_jvInvestmentController.text.trim()),
+        notes: _jvNotesController.text.trim(),
       );
+
+      // Create the offer
+      final offer = Offer(
+        id: '', // Will be set by Firestore
+        listingId: widget.listingId,
+        developerId: currentUser.id,
+        developerName: currentUser.name,
+        type: OfferType.jv,
+        jvProposal: jvProposal,
+        status: OfferStatus.pending,
+        notes: _jvNotesController.text.trim(),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      // Save offer to Firebase
+      await _offerService.createOffer(offer);
+
+      // Create negotiation thread
+      await _negotiationService.createNegotiation(
+        listingId: widget.listingId,
+        developerId: currentUser.id,
+        developerName: currentUser.name,
+        listingTitle: _listing!.location,
+        sellerId: _listing!.sellerId,
+        sellerName: 'Seller', // TODO: Get actual seller name
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('JV proposal submitted successfully!'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error submitting JV proposal: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting JV proposal: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingJV = false;
+        });
+      }
     }
   }
 
@@ -745,6 +879,8 @@ class _ListingDetailPageState extends State<ListingDetailPage> {
       case ListingStatus.sold:
         return AppTheme.textSecondary;
       case ListingStatus.expired:
+        return AppTheme.errorColor;
+      case ListingStatus.rejected:
         return AppTheme.errorColor;
     }
   }

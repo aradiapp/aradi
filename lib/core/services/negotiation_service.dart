@@ -1,68 +1,168 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:aradi/core/models/negotiation.dart';
 import 'package:aradi/core/models/offer.dart';
 
 class NegotiationService {
-  static Negotiation createNegotiation({
-    required String id,
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Create a new negotiation
+  Future<String> createNegotiation({
     required String listingId,
     required String developerId,
     required String developerName,
     required String listingTitle,
-    required double listingPrice,
-    required String currency,
-    required DateTime createdAt,
-  }) {
-    return Negotiation(
-      id: id,
-      listingId: listingId,
-      listingTitle: listingTitle,
-      sellerId: 'seller_1',
-      sellerName: 'Seller Name',
-      developerId: developerId,
-      developerName: developerName,
-      status: OfferStatus.sent,
-      createdAt: createdAt,
-      updatedAt: createdAt,
-      messages: [],
-    );
+    required String sellerId,
+    required String sellerName,
+  }) async {
+    try {
+      final negotiation = Negotiation(
+        id: '', // Will be set by Firestore
+        listingId: listingId,
+        listingTitle: listingTitle,
+        sellerId: sellerId,
+        sellerName: sellerName,
+        developerId: developerId,
+        developerName: developerName,
+        status: OfferStatus.sent,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        messages: [],
+      );
+
+      final docRef = await _firestore
+          .collection('negotiations')
+          .add(negotiation.toJson());
+
+      return docRef.id;
+    } catch (e) {
+      print('Error creating negotiation: $e');
+      throw Exception('Failed to create negotiation: $e');
+    }
   }
 
-  static NegotiationMessage sendMessage({
+  /// Send a message in a negotiation
+  Future<String> sendMessage({
     required String negotiationId,
     required String senderId,
     required String senderName,
     required String senderRole,
     required String content,
-  }) {
-    return NegotiationMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      negotiationId: negotiationId,
-      senderId: senderId,
-      senderName: senderName,
-      senderRole: senderRole,
-      type: NegotiationType.message,
-      content: content,
-      createdAt: DateTime.now(),
-    );
+  }) async {
+    try {
+      final message = NegotiationMessage(
+        id: '', // Will be set by Firestore
+        negotiationId: negotiationId,
+        senderId: senderId,
+        senderName: senderName,
+        senderRole: senderRole,
+        type: NegotiationType.message,
+        content: content,
+        createdAt: DateTime.now(),
+      );
+
+      // Add message to negotiation
+      await _firestore
+          .collection('negotiations')
+          .doc(negotiationId)
+          .collection('messages')
+          .add(message.toJson());
+
+      // Update negotiation timestamp
+      await _firestore
+          .collection('negotiations')
+          .doc(negotiationId)
+          .update({
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return message.id;
+    } catch (e) {
+      print('Error sending message: $e');
+      throw Exception('Failed to send message: $e');
+    }
   }
 
-  static NegotiationMessage sendOffer({
-    required String negotiationId,
-    required String senderId,
-    required String senderName,
-    required String senderRole,
-    required Offer offer,
-  }) {
-    return NegotiationMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      negotiationId: negotiationId,
-      senderId: senderId,
-      senderName: senderName,
-      senderRole: senderRole,
-      type: NegotiationType.offer,
-      content: 'New offer submitted',
-      createdAt: DateTime.now(),
-    );
+  /// Get negotiations for a user
+  Future<List<Negotiation>> getNegotiationsForUser(String userId, String userRole) async {
+    try {
+      Query query;
+      
+      if (userRole == 'developer') {
+        query = _firestore
+            .collection('negotiations')
+            .where('developerId', isEqualTo: userId)
+            .orderBy('updatedAt', descending: true);
+      } else if (userRole == 'seller') {
+        query = _firestore
+            .collection('negotiations')
+            .where('sellerId', isEqualTo: userId)
+            .orderBy('updatedAt', descending: true);
+      } else {
+        throw Exception('Invalid user role: $userRole');
+      }
+
+      final querySnapshot = await query.get();
+      
+      final negotiations = <Negotiation>[];
+      for (final doc in querySnapshot.docs) {
+        final negotiation = Negotiation.fromJson(doc.data() as Map<String, dynamic>);
+        negotiations.add(negotiation);
+      }
+
+      return negotiations;
+    } catch (e) {
+      print('Error fetching negotiations: $e');
+      return [];
+    }
+  }
+
+  /// Get a specific negotiation with messages
+  Future<Negotiation?> getNegotiationWithMessages(String negotiationId) async {
+    try {
+      final negotiationDoc = await _firestore
+          .collection('negotiations')
+          .doc(negotiationId)
+          .get();
+
+      if (!negotiationDoc.exists) {
+        return null;
+      }
+
+      final negotiation = Negotiation.fromJson(negotiationDoc.data()!);
+
+      // Get messages
+      final messagesQuery = await _firestore
+          .collection('negotiations')
+          .doc(negotiationId)
+          .collection('messages')
+          .orderBy('createdAt', descending: false)
+          .get();
+
+      final messages = messagesQuery.docs
+          .map((doc) => NegotiationMessage.fromJson(doc.data()))
+          .toList();
+
+      return negotiation.copyWith(messages: messages);
+    } catch (e) {
+      print('Error fetching negotiation with messages: $e');
+      return null;
+    }
+  }
+
+  /// Update negotiation status
+  Future<void> updateNegotiationStatus(String negotiationId, OfferStatus status) async {
+    try {
+      await _firestore
+          .collection('negotiations')
+          .doc(negotiationId)
+          .update({
+        'status': status.toString().split('.').last,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating negotiation status: $e');
+      throw Exception('Failed to update negotiation status: $e');
+    }
   }
 
   static NegotiationMessage respondToOffer({
@@ -77,6 +177,9 @@ class NegotiationService {
     switch (response) {
       case OfferStatus.accepted:
         content = 'Offer accepted';
+        break;
+      case OfferStatus.pending:
+        content = 'Offer pending';
         break;
       case OfferStatus.rejected:
         content = 'Offer rejected';
@@ -140,6 +243,8 @@ class NegotiationService {
     switch (negotiation.status) {
       case OfferStatus.sent:
         return 3; // Medium priority
+      case OfferStatus.pending:
+        return 3; // Medium priority
       case OfferStatus.countered:
         return 2; // High priority
       case OfferStatus.accepted:
@@ -159,6 +264,8 @@ class NegotiationService {
     // Suggest response time based on status
     switch (negotiation.status) {
       case OfferStatus.sent:
+        return 'Within 24 hours';
+      case OfferStatus.pending:
         return 'Within 24 hours';
       case OfferStatus.countered:
         return 'Within 48 hours';

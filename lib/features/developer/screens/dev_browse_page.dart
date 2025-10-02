@@ -2,24 +2,50 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class DevBrowsePage extends StatefulWidget {
+class DevBrowsePage extends ConsumerStatefulWidget {
   const DevBrowsePage({super.key});
 
   @override
-  State<DevBrowsePage> createState() => _DevBrowsePageState();
+  ConsumerState<DevBrowsePage> createState() => _DevBrowsePageState();
 }
 
-class _DevBrowsePageState extends State<DevBrowsePage> {
+class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
   List<LandListing> _listings = [];
   List<LandListing> _filteredListings = [];
   bool _isLoading = true;
-  String _selectedFilter = 'All';
+  
+  // Filter states
+  double? _minPrice;
+  double? _maxPrice;
+  double? _minGfa;
+  double? _maxGfa;
+  
+  // Text controllers for filter fields
+  final TextEditingController _minPriceController = TextEditingController();
+  final TextEditingController _maxPriceController = TextEditingController();
+  final TextEditingController _minGfaController = TextEditingController();
+  final TextEditingController _maxGfaController = TextEditingController();
+  
+  final LandListingService _landListingService = LandListingService();
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    _minGfaController.dispose();
+    _maxGfaController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -28,38 +54,82 @@ class _DevBrowsePageState extends State<DevBrowsePage> {
     });
 
     try {
-      // Load all active listings for browsing
-      final listings = <LandListing>[] // No mock data - will be loaded from Firebase
-          .where((listing) => listing.isActive)
-          .toList();
+      // Get current user
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
       
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Load all active listings
+      final listings = await _landListingService.getActiveListings();
+      
+      print('Developer ${currentUser.id} found ${listings.length} listings');
       _listings = listings;
       
       // Apply initial filter
-      _applyFilter(_selectedFilter);
+      _applyFilters();
+      
+      // Rebuild to update filters
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       print('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading listings: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _applyFilter(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-      
-      if (filter == 'All') {
-        _filteredListings = _listings;
-      } else {
-        _filteredListings = _listings.where((listing) {
-          return listing.area.toLowerCase().contains(filter.toLowerCase()) ||
-                 listing.developmentPermissions.any((permission) => 
-                   permission.toLowerCase().contains(filter.toLowerCase()));
-        }).toList();
+  void _applyFilters() {
+    final filteredListings = _listings.where((listing) {
+      // Price range filter
+      if (_minPrice != null && listing.askingPrice < _minPrice!) {
+        return false;
       }
-    });
+      if (_maxPrice != null && listing.askingPrice > _maxPrice!) {
+        return false;
+      }
+      
+      // GFA range filter
+      if (_minGfa != null && listing.gfa < _minGfa!) {
+        return false;
+      }
+      if (_maxGfa != null && listing.gfa > _maxGfa!) {
+        return false;
+      }
+      
+      return true;
+    }).toList();
+    
+    // Only call setState if the filtered results actually changed
+    if (_filteredListings.length != filteredListings.length || 
+        !_listEquals(_filteredListings, filteredListings)) {
+      setState(() {
+        _filteredListings = filteredListings;
+      });
+    }
+  }
+  
+  bool _listEquals<T>(List<T> a, List<T> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   @override
@@ -70,7 +140,6 @@ class _DevBrowsePageState extends State<DevBrowsePage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _buildHeader(),
                 _buildFilters(),
                 Expanded(
                   child: _buildListingsFeed(),
@@ -80,14 +149,16 @@ class _DevBrowsePageState extends State<DevBrowsePage> {
     );
   }
 
-  Widget _buildHeader() {
+
+  Widget _buildFilters() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -96,48 +167,159 @@ class _DevBrowsePageState extends State<DevBrowsePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Filters',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _clearFilters,
+                icon: const Icon(Icons.clear, size: 16),
+                label: const Text('Clear All'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Price Range Filter
           Text(
-            'Browse Land Listings',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+            'Price Range (AED)',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _minPriceController,
+                  decoration: InputDecoration(
+                    labelText: 'Min Price',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    final newMinPrice = double.tryParse(value);
+                    if (_minPrice != newMinPrice) {
+                      _minPrice = newMinPrice;
+                      _applyFilters();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _maxPriceController,
+                  decoration: InputDecoration(
+                    labelText: 'Max Price',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    final newMaxPrice = double.tryParse(value);
+                    if (_maxPrice != newMaxPrice) {
+                      _maxPrice = newMaxPrice;
+                      _applyFilters();
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // GFA Range Filter
           Text(
-            'Discover available land opportunities',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            'GFA Range (sqm)',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
               color: AppTheme.textSecondary,
             ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _minGfaController,
+                  decoration: InputDecoration(
+                    labelText: 'Min GFA',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    final newMinGfa = double.tryParse(value);
+                    if (_minGfa != newMinGfa) {
+                      _minGfa = newMinGfa;
+                      _applyFilters();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _maxGfaController,
+                  decoration: InputDecoration(
+                    labelText: 'Max GFA',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) {
+                    final newMaxGfa = double.tryParse(value);
+                    if (_maxGfa != newMaxGfa) {
+                      _maxGfa = newMaxGfa;
+                      _applyFilters();
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilters() {
-    final filters = ['All', 'Dubai Marina', 'Business Bay', 'Downtown', 'Residential', 'Commercial'];
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: filters.map((filter) {
-            final isSelected = _selectedFilter == filter;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _FilterChip(
-                label: filter,
-                isSelected: isSelected,
-                onTap: () => _applyFilter(filter),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
+
+
+  void _clearFilters() {
+    setState(() {
+      _minPrice = null;
+      _maxPrice = null;
+      _minGfa = null;
+      _maxGfa = null;
+      
+      // Clear the text controllers
+      _minPriceController.clear();
+      _maxPriceController.clear();
+      _minGfaController.clear();
+      _maxGfaController.clear();
+      
+      _applyFilters();
+    });
   }
 
   Widget _buildListingsFeed() {

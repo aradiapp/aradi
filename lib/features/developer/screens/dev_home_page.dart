@@ -2,12 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
-import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/models/land_listing.dart';
-import 'package:aradi/core/services/matching_service.dart';
-import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
-import 'package:aradi/app/providers/data_providers.dart';
 
 class DevHomePage extends ConsumerStatefulWidget {
   const DevHomePage({super.key});
@@ -28,25 +24,16 @@ class _DevHomePageState extends ConsumerState<DevHomePage> {
 
   Future<void> _loadData() async {
     try {
-      // Get current user
-      final authService = ref.read(authServiceProvider);
-      final currentUser = await authService.getCurrentUser();
+      print('=== DEVELOPER HOME PAGE LOADING DATA ===');
+      // Get active listings using new service
+      print('Loading active listings...');
+      final listings = await _landListingService.getActiveListings();
+      print('Found ${listings.length} active listings');
       
-      if (currentUser != null) {
-        // Get developer profile
-        final developerProfile = await ref.read(developerProfileProvider(currentUser.id).future);
-        
-        if (developerProfile != null) {
-          // Get active listings using new service
-          final listings = await _landListingService.getActiveListings();
-          
-          // Sort by matching score
-          final sortedListings = MatchingService.sortByMatchingScore(listings, developerProfile);
-          
-          setState(() {
-            _filteredListings = sortedListings;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _filteredListings = listings;
+        });
       }
       
     } catch (e) {
@@ -389,7 +376,7 @@ class _LandListingCard extends StatelessWidget {
                     child: _InfoRow(
                       icon: Icons.attach_money,
                       label: 'Price',
-                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
                     ),
                   ),
                 ],
@@ -505,4 +492,5 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+
 }

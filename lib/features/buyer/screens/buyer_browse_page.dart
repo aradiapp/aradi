@@ -18,13 +18,27 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
   List<LandListing> _listings = [];
   List<LandListing> _filteredListings = [];
   bool _isLoading = true;
-  String _selectedFilter = 'All';
   final LandListingService _landListingService = LandListingService();
+  
+  // Filter controllers
+  final TextEditingController _minPriceController = TextEditingController();
+  final TextEditingController _maxPriceController = TextEditingController();
+  final TextEditingController _minGfaController = TextEditingController();
+  final TextEditingController _maxGfaController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    _minGfaController.dispose();
+    _maxGfaController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -43,7 +57,7 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
       ).toList();
       
       // Apply initial filter
-      _applyFilter(_selectedFilter);
+      _applyFilters();
     } catch (e) {
       print('Error loading data: $e');
       if (mounted) {
@@ -63,20 +77,32 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
     }
   }
 
-  void _applyFilter(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-      
-      if (filter == 'All') {
-        _filteredListings = _listings;
-      } else {
+  void _applyFilters() {
+    if (mounted) {
+      setState(() {
         _filteredListings = _listings.where((listing) {
-          return listing.area.toLowerCase().contains(filter.toLowerCase()) ||
-                 listing.developmentPermissions.any((permission) => 
-                   permission.toLowerCase().contains(filter.toLowerCase()));
+          // Price filter
+          final minPrice = double.tryParse(_minPriceController.text) ?? 0;
+          final maxPrice = double.tryParse(_maxPriceController.text) ?? double.infinity;
+          final priceInRange = listing.askingPrice >= minPrice && listing.askingPrice <= maxPrice;
+          
+          // GFA filter
+          final minGfa = double.tryParse(_minGfaController.text) ?? 0;
+          final maxGfa = double.tryParse(_maxGfaController.text) ?? double.infinity;
+          final gfaInRange = listing.gfa >= minGfa && listing.gfa <= maxGfa;
+          
+          return priceInRange && gfaInRange;
         }).toList();
-      }
-    });
+      });
+    }
+  }
+
+  void _clearFilters() {
+    _minPriceController.clear();
+    _maxPriceController.clear();
+    _minGfaController.clear();
+    _maxGfaController.clear();
+    _applyFilters();
   }
 
   @override
@@ -87,7 +113,6 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _buildHeader(),
                 _buildFilters(),
                 Expanded(
                   child: _buildListingsFeed(),
@@ -97,7 +122,8 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
     );
   }
 
-  Widget _buildHeader() {
+
+  Widget _buildFilters() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -113,46 +139,83 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Browse Investment Opportunities',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Filters',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: _clearFilters,
+                child: const Text('Clear All'),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Discover verified land listings for investment',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _minPriceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Min Price (AED)',
+                    hintText: '0',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => _applyFilters(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: _maxPriceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Max Price (AED)',
+                    hintText: '10000000',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => _applyFilters(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _minGfaController,
+                  decoration: const InputDecoration(
+                    labelText: 'Min GFA (sqm)',
+                    hintText: '0',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => _applyFilters(),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextFormField(
+                  controller: _maxGfaController,
+                  decoration: const InputDecoration(
+                    labelText: 'Max GFA (sqm)',
+                    hintText: '50000',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => _applyFilters(),
+                ),
+              ),
+            ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilters() {
-    final filters = ['All', 'Dubai Marina', 'Business Bay', 'Downtown', 'Residential', 'Commercial'];
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: filters.map((filter) {
-            final isSelected = _selectedFilter == filter;
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _FilterChip(
-                label: filter,
-                isSelected: isSelected,
-                onTap: () => _applyFilter(filter),
-              ),
-            );
-          }).toList(),
-        ),
       ),
     );
   }
@@ -256,7 +319,7 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
                     child: _buildInfoItem('GFA', '${listing.gfa.toStringAsFixed(0)} sqm'),
                   ),
                   Expanded(
-                    child: _buildInfoItem('Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M'),
+                    child: _buildInfoItem('Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M'),
                   ),
                 ],
               ),
@@ -311,41 +374,7 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
       ],
     );
   }
+
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.secondaryColor : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppTheme.secondaryColor : AppTheme.borderColor,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : AppTheme.textSecondary,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-}
 

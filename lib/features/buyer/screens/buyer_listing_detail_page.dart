@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
 import 'dart:io';
 
-class SellerLandListingPage extends ConsumerStatefulWidget {
+class BuyerListingDetailPage extends ConsumerStatefulWidget {
   final String listingId;
-
-  const SellerLandListingPage({super.key, required this.listingId});
+  
+  const BuyerListingDetailPage({
+    super.key,
+    required this.listingId,
+  });
 
   @override
-  ConsumerState<SellerLandListingPage> createState() => _SellerLandListingPageState();
+  ConsumerState<BuyerListingDetailPage> createState() => _BuyerListingDetailPageState();
 }
 
-class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
+class _BuyerListingDetailPageState extends ConsumerState<BuyerListingDetailPage> {
   LandListing? _listing;
   bool _isLoading = true;
   int _currentPhotoIndex = 0;
@@ -29,27 +32,17 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
   }
 
   Future<void> _loadListing() async {
-    print('=== LOADING LISTING ===');
-    print('Widget listingId: ${widget.listingId}');
-    print('Widget listingId length: ${widget.listingId.length}');
-    
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       final listing = await _landListingService.getListingById(widget.listingId);
-      print('Retrieved listing: ${listing?.id}');
-      print('Retrieved listing title: ${listing?.title}');
-      
-      if (listing == null) {
-        throw Exception('Listing not found');
-      }
-      
       if (mounted) {
         setState(() {
           _listing = listing;
-          _isLoading = false;
         });
       }
     } catch (e) {
@@ -61,53 +54,12 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
             backgroundColor: AppTheme.errorColor,
           ),
         );
-        context.go('/seller');
       }
-    }
-  }
-
-  Future<void> _deleteListing() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Listing'),
-        content: const Text('Are you sure you want to delete this listing? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && _listing != null) {
-      try {
-        await _landListingService.deleteListing(_listing!.id);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Listing deleted successfully'),
-              backgroundColor: AppTheme.successColor,
-            ),
-          );
-          context.go('/seller');
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error deleting listing: $e'),
-              backgroundColor: AppTheme.errorColor,
-            ),
-          );
-        }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -121,27 +73,10 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         leading: IconButton(
-          onPressed: () => context.go('/seller'),
+          onPressed: () => context.go('/buyer/browse'),
           icon: const Icon(Icons.arrow_back),
         ),
-        actions: [
-          if (_listing != null)
-            IconButton(
-              onPressed: () {
-                final editUrl = '/seller/listing/${_listing!.id}/edit';
-                print('Navigating to edit URL: $editUrl');
-                context.go(editUrl);
-              },
-              icon: const Icon(Icons.edit),
-              tooltip: 'Edit Listing',
-            ),
-          if (_listing != null)
-            IconButton(
-              onPressed: _deleteListing,
-              icon: const Icon(Icons.delete),
-              tooltip: 'Delete Listing',
-            ),
-        ],
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -177,8 +112,8 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
           _buildPermissionsCard(listing),
           const SizedBox(height: 16),
           
-          // Status Card
-          _buildStatusCard(listing),
+          // Seller Info Card
+          _buildSellerInfoCard(listing),
           const SizedBox(height: 24),
           
           // Action Buttons
@@ -380,14 +315,13 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
                       const SizedBox(height: 8),
                       Text(
                         listing.location,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 4),
                       Text(
                         listing.area,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
                       ),
@@ -397,45 +331,37 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(listing.status),
-                    borderRadius: BorderRadius.circular(20),
+                    color: AppTheme.successColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    _getStatusText(listing.status),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified,
+                        size: 16,
+                        color: AppTheme.successColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Verified',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.successColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoItem(
-                    'Land Size',
-                    '${listing.landSize.toStringAsFixed(0)} sqm',
-                    Icons.landscape,
-                  ),
-                ),
-                Expanded(
-                  child: _buildInfoItem(
-                    'GFA',
-                    '${listing.gfa.toStringAsFixed(0)} sqm',
-                    Icons.home_work,
-                  ),
-                ),
-                Expanded(
-                  child: _buildInfoItem(
-                    'Asking Price',
-                    'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
-                    Icons.attach_money,
-                  ),
-                ),
-              ],
+            Text(
+              listing.description.isNotEmpty ? listing.description : 'No description provided',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: AppTheme.textSecondary,
+                height: 1.4,
+              ),
             ),
           ],
         ),
@@ -445,9 +371,9 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
 
   Widget _buildDetailsCard(LandListing listing) {
     return Card(
-      elevation: 4,
+      elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -458,19 +384,35 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
               'Property Details',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppTheme.primaryColor,
               ),
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Ownership Type', _getOwnershipTypeText(listing.ownershipType)),
-            _buildInfoRow('Listing Type', _getListingTypeText(listing.listingType)),
-            if (listing.description.isNotEmpty)
-              _buildInfoRow('Description', listing.description),
-            if (listing.notes.isNotEmpty)
-              _buildInfoRow('Notes', listing.notes),
-            _buildInfoRow('Created', _formatDate(listing.createdAt)),
-            if (listing.updatedAt != null)
-              _buildInfoRow('Last Updated', _formatDate(listing.updatedAt!)),
+            _buildDetailRow(
+              icon: Icons.square_foot,
+              label: 'Land Size',
+              value: '${listing.landSize.toStringAsFixed(0)} sqm',
+            ),
+            _buildDetailRow(
+              icon: Icons.business,
+              label: 'GFA',
+              value: '${listing.gfa.toStringAsFixed(0)} sqm',
+            ),
+            _buildDetailRow(
+              icon: Icons.attach_money,
+              label: 'Asking Price',
+              value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
+            ),
+            _buildDetailRow(
+              icon: Icons.category,
+              label: 'Ownership Type',
+              value: listing.ownershipType.toString().split('.').last,
+            ),
+            _buildDetailRow(
+              icon: Icons.type_specimen,
+              label: 'Listing Type',
+              value: listing.listingType.toString().split('.').last,
+            ),
           ],
         ),
       ),
@@ -479,9 +421,9 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
 
   Widget _buildPermissionsCard(LandListing listing) {
     return Card(
-      elevation: 4,
+      elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -492,52 +434,41 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
               'Development Permissions',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppTheme.primaryColor,
               ),
             ),
             const SizedBox(height: 16),
-            if (listing.developmentPermissions.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: listing.developmentPermissions.map((permission) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: listing.developmentPermissions.map((permission) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    permission,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.secondaryColor,
+                      fontWeight: FontWeight.w500,
                     ),
-                    child: Text(
-                      permission.toString().split('.').last.replaceAll('_', ' ').toUpperCase(),
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 12,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              )
-            else
-              Text(
-                'No permissions specified',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+                  ),
+                );
+              }).toList(),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusCard(LandListing listing) {
+  Widget _buildSellerInfoCard(LandListing listing) {
     return Card(
-      elevation: 4,
+      elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -545,20 +476,29 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Listing Status',
+              'Seller Information',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+                color: AppTheme.primaryColor,
               ),
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Status', _getStatusText(listing.status)),
-            _buildInfoRow('Active', listing.isActive ? 'Yes' : 'No'),
-            _buildInfoRow('Verified', listing.isVerified ? 'Yes' : 'No'),
-            if (listing.verifiedAt != null)
-              _buildInfoRow('Verified At', _formatDate(listing.verifiedAt!)),
-            if (listing.verifiedBy != null)
-              _buildInfoRow('Verified By', listing.verifiedBy!),
+            _buildDetailRow(
+              icon: Icons.person,
+              label: 'Seller Name',
+              value: listing.sellerName,
+            ),
+            _buildDetailRow(
+              icon: Icons.calendar_today,
+              label: 'Listed On',
+              value: _formatDate(listing.createdAt),
+            ),
+            if (listing.notes.isNotEmpty)
+              _buildDetailRow(
+                icon: Icons.note,
+                label: 'Additional Notes',
+                value: listing.notes,
+              ),
           ],
         ),
       ),
@@ -569,98 +509,77 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () {
-              print('=== EDIT BUTTON CLICKED ===');
-              print('Listing object: $listing');
-              print('Listing ID: ${listing.id}');
-              print('Listing ID length: ${listing.id.length}');
-              print('Listing ID is empty: ${listing.id.isEmpty}');
-              final editUrl = '/seller/listing/${listing.id}/edit';
-              print('Edit URL: $editUrl');
-              print('Current route: ${GoRouterState.of(context).matchedLocation}');
-              print('Navigating to edit page...');
-              context.go(editUrl);
-            },
-            icon: const Icon(Icons.edit),
-            label: const Text('Edit Listing'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
+          child: OutlinedButton(
+            onPressed: () => context.go('/buyer/browse'),
+            style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Back to Browse',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppTheme.primaryColor,
               ),
             ),
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => context.go('/seller'),
-            icon: const Icon(Icons.arrow_back),
-            label: const Text('Back to Home'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppTheme.primaryColor,
-              side: BorderSide(color: AppTheme.primaryColor),
+          child: ElevatedButton(
+            onPressed: () => _showOfferDialog(listing),
+            style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoItem(String label, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.primaryColor, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
             child: Text(
-              '$label:',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
+              'Make Offer',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.white,
               ),
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: AppTheme.textSecondary,
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -668,46 +587,108 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
     );
   }
 
-  Color _getStatusColor(ListingStatus status) {
-    switch (status) {
-      case ListingStatus.pending_verification:
-        return Colors.orange;
-      case ListingStatus.active:
-        return Colors.green;
-      case ListingStatus.sold:
-        return Colors.blue;
-      case ListingStatus.expired:
-        return Colors.grey;
-      case ListingStatus.rejected:
-        return Colors.red;
-    }
-  }
-
-  String _getStatusText(ListingStatus status) {
-    switch (status) {
-      case ListingStatus.pending_verification:
-        return 'Pending';
-      case ListingStatus.active:
-        return 'Active';
-      case ListingStatus.sold:
-        return 'Sold';
-      case ListingStatus.expired:
-        return 'Expired';
-      case ListingStatus.rejected:
-        return 'Rejected';
-    }
-  }
-
-  String _getOwnershipTypeText(OwnershipType type) {
-    return type.toString().split('.').last.replaceAll('_', ' ').toUpperCase();
-  }
-
-  String _getListingTypeText(ListingType type) {
-    return type.toString().split('.').last.replaceAll('_', ' ').toUpperCase();
-  }
-
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _showOfferDialog(LandListing listing) {
+    final offerController = TextEditingController();
+    final notesController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Make an Offer'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Property: ${listing.title}',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Asking Price: AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: offerController,
+                decoration: const InputDecoration(
+                  labelText: 'Your Offer (AED)',
+                  hintText: 'Enter your offer amount',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Additional Notes (Optional)',
+                  hintText: 'Any additional information for the seller',
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info,
+                      size: 16,
+                      color: AppTheme.warningColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your offer must be within ±20% of the asking price',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.warningColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _submitOffer(listing, offerController.text, notesController.text);
+            },
+            child: const Text('Submit Offer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _submitOffer(LandListing listing, String offerAmount, String notes) {
+    // TODO: Implement actual offer submission to Firebase
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Offer submitted successfully! The seller will be notified.'),
+        backgroundColor: AppTheme.successColor,
+      ),
+    );
   }
 
   void _showFullscreenImage(List<String> imageUrls) {

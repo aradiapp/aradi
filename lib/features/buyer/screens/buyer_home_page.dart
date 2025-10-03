@@ -2,19 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BuyerHomePage extends StatefulWidget {
+class BuyerHomePage extends ConsumerStatefulWidget {
   const BuyerHomePage({super.key});
 
   @override
-  State<BuyerHomePage> createState() => _BuyerHomePageState();
+  ConsumerState<BuyerHomePage> createState() => _BuyerHomePageState();
 }
 
-class _BuyerHomePageState extends State<BuyerHomePage> {
+class _BuyerHomePageState extends ConsumerState<BuyerHomePage> {
   List<LandListing> _listings = [];
   List<LandListing> _filteredListings = [];
   bool _isLoading = true;
   String _selectedFilter = 'All';
+  final LandListingService _landListingService = LandListingService();
 
   @override
   void initState() {
@@ -23,26 +26,40 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       // Load active listings (excluding JV-only listings for buyers)
-      final listings = <LandListing>[] // No mock data - will be loaded from Firebase
-          .where((listing) => listing.isActive)
-          .toList();
+      final listings = await _landListingService.getActiveListings();
       
-      _listings = listings;
+      // Filter out JV-only listings for buyers
+      _listings = listings.where((listing) => 
+        listing.isActive && 
+        listing.listingType != ListingType.jvOnly
+      ).toList();
       
       // Apply initial filter
       _applyFilter(_selectedFilter);
     } catch (e) {
       print('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading listings: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -97,9 +114,6 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                     _buildQuickStats(),
                     const SizedBox(height: 24),
                     
-                    // Filters
-                    _buildFilters(),
-                    const SizedBox(height: 24),
                     
                     // Listings Feed
                     _buildListingsFeed(),
@@ -323,9 +337,9 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
               final listing = _filteredListings[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: _LandListingCard(
+                  child: _LandListingCard(
                   listing: listing,
-                  onTap: () => context.go('/dev/listing/${listing.id}'),
+                  onTap: () => context.go('/buyer/listing/${listing.id}'),
                 ),
               );
             },
@@ -408,7 +422,7 @@ class _BuyerHomePageState extends State<BuyerHomePage> {
                     _DetailRow(
                       icon: Icons.attach_money,
                       label: 'Asking Price',
-                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
                     ),
                     _DetailRow(
                       icon: Icons.category,
@@ -658,7 +672,7 @@ class _LandListingCard extends StatelessWidget {
                     child: _InfoRow(
                       icon: Icons.attach_money,
                       label: 'Price',
-                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
                     ),
                   ),
                 ],
@@ -860,4 +874,5 @@ class _FilterChip extends StatelessWidget {
       ),
     );
   }
+
 }

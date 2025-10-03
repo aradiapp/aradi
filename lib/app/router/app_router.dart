@@ -15,11 +15,13 @@ import 'package:aradi/features/developer/screens/dev_profile_edit_page.dart';
 import 'package:aradi/features/buyer/screens/buyer_paywall_page.dart';
 import 'package:aradi/features/buyer/screens/buyer_home_page.dart';
 import 'package:aradi/features/buyer/screens/buyer_browse_page.dart';
+import 'package:aradi/features/buyer/screens/buyer_listing_detail_page.dart';
 import 'package:aradi/features/buyer/screens/buyer_profile_page.dart';
 import 'package:aradi/features/buyer/screens/buyer_profile_edit_page.dart';
 import 'package:aradi/features/seller/screens/seller_home_page.dart';
 import 'package:aradi/features/seller/screens/land_form_page.dart';
 import 'package:aradi/features/seller/screens/seller_land_listing_page.dart';
+import 'package:aradi/features/seller/screens/edit_listing_page.dart';
 import 'package:aradi/features/seller/screens/seller_dev_browser_page.dart';
 import 'package:aradi/features/seller/screens/seller_profile_page.dart';
 import 'package:aradi/features/seller/screens/seller_profile_edit_page.dart';
@@ -143,6 +145,16 @@ class AppRouter {
           child: const BuyerBrowsePage(),
         ),
       ),
+      GoRoute(
+        path: '/buyer/listing/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return MainNavigation(
+            userRole: UserRole.buyer,
+            child: BuyerListingDetailPage(listingId: id),
+          );
+        },
+      ),
       
       // Seller Routes
       GoRoute(
@@ -158,6 +170,17 @@ class AppRouter {
           userRole: UserRole.seller,
           child: const LandFormPage(),
         ),
+      ),
+      GoRoute(
+        path: '/seller/listing/:id/edit',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          print('Edit route matched with id: $id');
+          return MainNavigation(
+            userRole: UserRole.seller,
+            child: EditListingPage(listingId: id),
+          );
+        },
       ),
       GoRoute(
         path: '/seller/listing/:id',

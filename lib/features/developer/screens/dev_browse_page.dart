@@ -421,7 +421,7 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
                     child: _buildInfoItem('GFA', '${listing.gfa.toStringAsFixed(0)} sqm'),
                   ),
                   Expanded(
-                    child: _buildInfoItem('Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M'),
+                    child: _buildInfoItem('Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M'),
                   ),
                 ],
               ),
@@ -512,5 +512,6 @@ class _FilterChip extends StatelessWidget {
       ),
     );
   }
+
 }
 

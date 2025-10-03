@@ -87,7 +87,10 @@ class LandListingService {
         return null;
       }
 
-      return LandListing.fromJson(doc.data()!);
+      return LandListing.fromJson({
+        ...doc.data()!,
+        'id': doc.id,
+      });
     } catch (e) {
       print('Error fetching listing: $e');
       return null;

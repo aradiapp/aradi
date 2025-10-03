@@ -6,6 +6,8 @@ import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
+import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
+import 'dart:io';
 
 class AdminVerificationPage extends ConsumerStatefulWidget {
   const AdminVerificationPage({super.key});
@@ -424,7 +426,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
                             ),
                           ),
                           Text(
-                            'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+                            'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
                             style: TextStyle(
                               color: AppTheme.primaryColor,
                               fontWeight: FontWeight.w500,
@@ -508,10 +510,15 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
           
           const SizedBox(height: 8),
           
+          // Photos
+          _buildPhotosSection(listing),
+          
+          const SizedBox(height: 8),
+          
           // Property Details
           _buildDetailRow('Land Size', '${listing.landSize} sqm'),
           _buildDetailRow('GFA', '${listing.gfa} sqm'),
-          _buildDetailRow('Asking Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M'),
+          _buildDetailRow('Asking Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M'),
           _buildDetailRow('Ownership Type', listing.ownershipType.toString().split('.').last.toUpperCase()),
           
           const SizedBox(height: 8),
@@ -642,7 +649,138 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
     );
   }
 
+  Widget _buildPhotosSection(LandListing listing) {
+    final photos = listing.photos;
+    final photoUrls = listing.photoUrls;
+    final allPhotos = [...photos, ...photoUrls];
+    
+    if (allPhotos.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Photos',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.image, color: Colors.grey, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'No photos available',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Photos (${allPhotos.length})',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: allPhotos.length,
+            itemBuilder: (context, index) {
+              return Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () => _showFullscreenImage(allPhotos, index),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildImageWidget(allPhotos[index]),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageWidget(String imagePath) {
+    // Check if it's a local file path or network URL
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 120,
+            height: 120,
+            color: Colors.grey[200],
+            child: const Icon(
+              Icons.broken_image,
+              color: Colors.grey,
+              size: 32,
+            ),
+          );
+        },
+      );
+    } else {
+      // Local file
+      return Image.file(
+        File(imagePath),
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 120,
+            height: 120,
+            color: Colors.grey[200],
+            child: const Icon(
+              Icons.broken_image,
+              color: Colors.grey,
+              size: 32,
+            ),
+          );
+        },
+      );
+    }
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
+
+  void _showFullscreenImage(List<String> imageUrls, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullscreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
 }

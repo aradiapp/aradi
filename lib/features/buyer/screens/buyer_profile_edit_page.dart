@@ -187,7 +187,7 @@ class _BuyerProfileEditPageState extends ConsumerState<BuyerProfileEditPage> {
                     decoration: const InputDecoration(
                       labelText: 'Minimum Budget',
                       border: OutlineInputBorder(),
-                      prefixText: '\$',
+                      prefixText: 'AED ',
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -199,7 +199,7 @@ class _BuyerProfileEditPageState extends ConsumerState<BuyerProfileEditPage> {
                     decoration: const InputDecoration(
                       labelText: 'Maximum Budget',
                       border: OutlineInputBorder(),
-                      prefixText: '\$',
+                      prefixText: 'AED ',
                     ),
                     keyboardType: TextInputType.number,
                   ),

@@ -4,8 +4,12 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/core/services/photo_upload_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 class LandFormPage extends ConsumerStatefulWidget {
   const LandFormPage({super.key});
@@ -24,9 +28,16 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
   final _notesController = TextEditingController();
   
   String _selectedOwnership = 'freehold';
+  ListingType _selectedListingType = ListingType.both;
   List<String> _selectedPermissions = [];
   bool _isSubmitting = false;
   final LandListingService _landListingService = LandListingService();
+  final PhotoUploadService _photoUploadService = PhotoUploadService();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+  
+  // Photo-related variables
+  List<File> _selectedImages = [];
+  final ImagePicker _imagePicker = ImagePicker();
   final List<String> _ownershipTypes = ['freehold', 'leasehold', 'gcc'];
   final List<String> _permissionTypes = ['residential', 'commercial', 'hotel', 'mix'];
 
@@ -124,6 +135,14 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
 
               // Ownership Type
               _buildOwnershipSelector(),
+              const SizedBox(height: 16),
+
+              // Listing Type
+              _buildListingTypeSelector(),
+              const SizedBox(height: 16),
+
+              // Photos
+              _buildPhotoSelector(),
               const SizedBox(height: 16),
 
               // Permissions
@@ -289,6 +308,270 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
     );
   }
 
+  Widget _buildListingTypeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Listing Type',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select the type of listing',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedListingType = ListingType.buy;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: _selectedListingType == ListingType.buy
+                        ? AppTheme.primaryColor
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedListingType == ListingType.buy
+                          ? AppTheme.primaryColor
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.sell,
+                        color: _selectedListingType == ListingType.buy
+                            ? Colors.white
+                            : Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Buy',
+                        style: TextStyle(
+                          color: _selectedListingType == ListingType.buy
+                              ? Colors.white
+                              : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedListingType = ListingType.jvOnly;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: _selectedListingType == ListingType.jvOnly
+                        ? AppTheme.primaryColor
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedListingType == ListingType.jvOnly
+                          ? AppTheme.primaryColor
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.handshake,
+                        color: _selectedListingType == ListingType.jvOnly
+                            ? Colors.white
+                            : Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'JV Only',
+                        style: TextStyle(
+                          color: _selectedListingType == ListingType.jvOnly
+                              ? Colors.white
+                              : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedListingType = ListingType.both;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: _selectedListingType == ListingType.both
+                        ? AppTheme.primaryColor
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedListingType == ListingType.both
+                          ? AppTheme.primaryColor
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.business,
+                        color: _selectedListingType == ListingType.both
+                            ? Colors.white
+                            : Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Both',
+                        style: TextStyle(
+                          color: _selectedListingType == ListingType.both
+                              ? Colors.white
+                              : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhotoSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Photos (Optional)',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Add photos to showcase your land listing',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _pickImages,
+                icon: const Icon(Icons.add_a_photo),
+                label: const Text('Add Photos'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (_selectedImages.isNotEmpty)
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _clearImages,
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Clear All'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[600],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (_selectedImages.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedImages.length,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          _selectedImages[index],
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: GestureDetector(
+                          onTap: () => _removeImage(index),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildPermissionSelector() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,6 +627,36 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
     );
   }
 
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> images = await _imagePicker.pickMultiImage();
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages.addAll(images.map((image) => File(image.path)));
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking images: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
+  void _clearImages() {
+    setState(() {
+      _selectedImages.clear();
+    });
+  }
+
   void _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPermissions.isEmpty) {
@@ -361,12 +674,34 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
     });
 
     try {
+      print('Starting form submission...');
       // Get current user
       final authService = ref.read(authServiceProvider);
       final currentUser = await authService.getCurrentUser();
       
       if (currentUser == null) {
         throw Exception('User not authenticated');
+      }
+
+      // Upload photos to Firebase Storage first
+      List<String> photoUrls = [];
+      if (_selectedImages.isNotEmpty) {
+        try {
+          // Create a temporary listing ID for photo uploads
+          final tempListingId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+          print('Attempting to upload ${_selectedImages.length} photos...');
+          print('Photo files: ${_selectedImages.map((f) => f.path).toList()}');
+          
+          // Skip connection test to avoid double uploads
+          print('Skipping connection test to avoid double uploads');
+          
+          photoUrls = await _photoUploadService.uploadPhotos(_selectedImages, tempListingId);
+          print('Photo upload completed: ${photoUrls.length} URLs received');
+        } catch (e) {
+          print('Photo upload failed: $e');
+          // Continue without photos rather than failing the entire listing
+          photoUrls = [];
+        }
       }
 
       // Create the land listing with only essential fields
@@ -383,11 +718,14 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
           (e) => e.toString().split('.').last == _selectedOwnership,
           orElse: () => OwnershipType.freehold,
         ),
-        permissions: _selectedPermissions.map((p) => PermissionType.values.firstWhere(
-          (e) => e.toString().split('.').last == p,
-          orElse: () => PermissionType.residential,
-        )).toList(),
-        photoUrls: [],
+        permissions: _selectedPermissions.map((p) {
+          final stringValue = p.toLowerCase();
+          return PermissionType.values.firstWhere(
+            (e) => e.toString().split('.').last.toLowerCase() == stringValue,
+            orElse: () => PermissionType.residential,
+          );
+        }).toList(),
+        photoUrls: photoUrls, // Now using Firebase Storage URLs
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         title: _locationController.text.trim(),
@@ -398,19 +736,22 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
         zoning: '',
         developmentPermissions: _selectedPermissions,
         // Override defaults to ensure correct values
-        listingType: ListingType.both,
+        listingType: _selectedListingType,
         isActive: false,
         isVerified: false,
+        photos: [], // Keep photos empty, only use photoUrls for Firebase Storage URLs
         notes: _notesController.text.trim(),
       );
 
       // Save to Firebase
+      print('Saving listing to Firestore...');
       await _landListingService.createListing(listing);
+      print('Listing saved successfully!');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Land listing submitted successfully! It will be reviewed by our team.'),
+          SnackBar(
+            content: Text('Land listing submitted successfully! ${photoUrls.isNotEmpty ? 'Photos uploaded.' : 'No photos uploaded.'}'),
             backgroundColor: AppTheme.successColor,
           ),
         );

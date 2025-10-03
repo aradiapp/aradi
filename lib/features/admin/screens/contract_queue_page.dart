@@ -504,7 +504,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+              'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -689,7 +689,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'AED ${(deal.finalPrice / 1000000).toStringAsFixed(1)}M',
+              'AED ${(deal.finalPrice / 1000000).toStringAsFixed(2)}M',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -812,4 +812,5 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
       ),
     );
   }
+
 }

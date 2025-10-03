@@ -206,7 +206,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
   String _getAppBarTitle() {
     final currentRoute = GoRouterState.of(context).matchedLocation;
-    if (currentRoute.contains('/listing/')) return 'Listing Details';
+        if (currentRoute.contains('/buyer/listing/')) return ''; // Remove duplicate title for buyer listing pages
+        if (currentRoute.contains('/seller/listing/') && currentRoute.contains('/edit')) return '';
+        if (currentRoute.contains('/seller/listing/')) return ''; // Remove duplicate title for seller listing pages
+    if (currentRoute.contains('/dev/listing/')) return ''; // Remove duplicate title for developer listing pages
     if (currentRoute.contains('/thread/')) return 'Negotiation';
     if (currentRoute.contains('/agreement/')) return 'Agreement';
     if (currentRoute.contains('/land/add')) return 'Add Listing';

@@ -234,7 +234,7 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
               child: _QuickStatCard(
                 icon: Icons.attach_money,
                 title: 'Total Value',
-                value: 'AED ${(totalValue / 1000000).toStringAsFixed(1)}M',
+                value: 'AED ${(totalValue / 1000000).toStringAsFixed(0)}M',
                 color: AppTheme.successColor,
               ),
             ),
@@ -426,7 +426,7 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
                     _DetailRow(
                       icon: Icons.attach_money,
                       label: 'Asking Price',
-                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
                     ),
                     _DetailRow(
                       icon: Icons.mail,
@@ -648,7 +648,7 @@ class _ListingCard extends StatelessWidget {
                     child: _InfoRow(
                       icon: Icons.attach_money,
                       label: 'Price',
-                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M',
+                      value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
                     ),
                   ),
                   Expanded(
@@ -805,6 +805,7 @@ class _InfoRow extends StatelessWidget {
       ],
     );
   }
+
 }
 
 class _DetailRow extends StatelessWidget {

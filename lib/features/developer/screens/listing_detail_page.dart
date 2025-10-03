@@ -10,6 +10,8 @@ import 'package:aradi/core/services/negotiation_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
+import 'dart:io';
 
 class ListingDetailPage extends ConsumerStatefulWidget {
   final String listingId;
@@ -25,6 +27,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   bool _isLoading = true;
   bool _isSubmittingOffer = false;
   bool _isSubmittingJV = false;
+  int _currentPhotoIndex = 0;
   
   // Offer form controllers
   final _offerAmountController = TextEditingController();
@@ -164,6 +167,47 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   }
 
   Widget _buildImageGallery() {
+    final photos = _listing?.photos ?? [];
+    final photoUrls = _listing?.photoUrls ?? [];
+    final allPhotos = [...photos, ...photoUrls];
+    
+    if (allPhotos.isEmpty) {
+      return Container(
+        height: 250,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: AppTheme.surfaceColor,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.image,
+                  size: 64,
+                  color: AppTheme.primaryColor,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'No photos available',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
       height: 250,
       decoration: BoxDecoration(
@@ -174,41 +218,117 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Placeholder for images
-            Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              child: const Icon(
-                Icons.image,
-                size: 64,
-                color: AppTheme.primaryColor,
+            // Photo carousel
+            GestureDetector(
+              onTap: () => _showFullscreenImage(allPhotos),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                child: allPhotos.isNotEmpty
+                    ? PageView.builder(
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentPhotoIndex = index;
+                          });
+                        },
+                        itemCount: allPhotos.length,
+                        itemBuilder: (context, index) {
+                          return _buildImageWidget(allPhotos[index]);
+                        },
+                      )
+                    : Container(
+                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        child: const Icon(
+                          Icons.image,
+                          size: 64,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
               ),
             ),
             // Image counter
-            Positioned(
-              top: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  '1 / 5',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+            if (allPhotos.length > 1)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_currentPhotoIndex + 1} / ${allPhotos.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
-            ),
+            // Photo indicator dots
+            if (allPhotos.length > 1)
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    allPhotos.length,
+                    (index) => Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: index == _currentPhotoIndex ? Colors.white : Colors.white.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildImageWidget(String imagePath) {
+    // Check if it's a local file path or network URL
+    if (imagePath.startsWith('http')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: const Icon(
+              Icons.broken_image,
+              size: 64,
+              color: AppTheme.primaryColor,
+            ),
+          );
+        },
+      );
+    } else {
+      // Local file
+      return Image.file(
+        File(imagePath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: AppTheme.primaryColor.withOpacity(0.1),
+            child: const Icon(
+              Icons.broken_image,
+              size: 64,
+              color: AppTheme.primaryColor,
+            ),
+          );
+        },
+      );
+    }
   }
 
   Widget _buildBasicInfo() {
@@ -241,7 +361,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 ),
                 const Spacer(),
                 Text(
-                  '\$${_formatPrice(_listing!.askingPrice)}',
+                  'AED ${_formatPrice(_listing!.askingPrice)}',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     color: AppTheme.primaryColor,
                     fontWeight: FontWeight.bold,
@@ -379,9 +499,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Asking Price', '\$${_formatPrice(_listing!.askingPrice)}'),
-            _buildInfoRow('Price per Acre', '\$${_formatPrice(_listing!.askingPrice / _listing!.landSize)}'),
-            _buildInfoRow('Price per Sq Ft', '\$${(_listing!.askingPrice / _listing!.gfa).toStringAsFixed(2)}'),
+            _buildInfoRow('Asking Price', 'AED ${_formatPrice(_listing!.askingPrice)}'),
+            _buildInfoRow('Price per Acre', 'AED ${_formatPrice(_listing!.askingPrice / _listing!.landSize)}'),
+            _buildInfoRow('Price per Sq Ft', 'AED ${(_listing!.askingPrice / _listing!.gfa).toStringAsFixed(2)}'),
           ],
         ),
       ),
@@ -585,7 +705,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Offer Amount',
-                prefixText: '\$',
+                prefixText: 'AED ',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -642,7 +762,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'Investment Amount',
-                prefixText: '\$',
+                prefixText: 'AED ',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -887,7 +1007,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
 
   String _formatPrice(double price) {
     if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M';
+      return '${(price / 1000000).toStringAsFixed(2)}M';
     } else if (price >= 1000) {
       return '${(price / 1000).toStringAsFixed(0)}K';
     } else {
@@ -897,5 +1017,16 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _showFullscreenImage(List<String> imageUrls) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullscreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: _currentPhotoIndex,
+        ),
+      ),
+    );
   }
 }

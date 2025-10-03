@@ -223,7 +223,7 @@ class _AgreementPageState extends State<AgreementPage> {
               controller: _purchasePriceController,
               label: 'Purchase Price',
               icon: Icons.attach_money,
-              prefixText: '\$',
+              prefixText: 'AED ',
             ),
             const SizedBox(height: 16),
             _buildDateField(
@@ -236,7 +236,7 @@ class _AgreementPageState extends State<AgreementPage> {
               controller: _earnestMoneyController,
               label: 'Earnest Money',
               icon: Icons.account_balance,
-              prefixText: '\$',
+              prefixText: 'AED ',
             ),
             const SizedBox(height: 16),
             _buildTextField(

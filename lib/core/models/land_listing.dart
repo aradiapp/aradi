@@ -86,12 +86,18 @@ class LandListing {
         (e) => e.toString().split('.').last == json['ownershipType'],
         orElse: () => OwnershipType.freehold,
       ),
-      permissions: (json['permissions'] as List<dynamic>)
-          .map((e) => PermissionType.values.firstWhere(
-                (p) => p.toString().split('.').last == e,
-                orElse: () => PermissionType.residential,
-              ))
-          .toList(),
+      permissions: (json['permissions'] as List<dynamic>?)
+          ?.map((e) {
+            final stringValue = e.toString().toLowerCase();
+            print('Converting permission: "$e" -> "$stringValue"');
+            final result = PermissionType.values.firstWhere(
+              (p) => p.toString().split('.').last.toLowerCase() == stringValue,
+              orElse: () => PermissionType.residential,
+            );
+            print('Converted to: $result');
+            return result;
+          })
+          .toList() ?? [],
       photoUrls: (json['photoUrls'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),

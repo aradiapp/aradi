@@ -4,12 +4,56 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/core/models/buyer_profile.dart';
+import 'package:aradi/core/models/land_listing.dart';
+import 'package:aradi/core/services/land_listing_service.dart';
 
-class BuyerProfilePage extends ConsumerWidget {
+class BuyerProfilePage extends ConsumerStatefulWidget {
   const BuyerProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BuyerProfilePage> createState() => _BuyerProfilePageState();
+}
+
+class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
+  List<LandListing> _myListings = [];
+  bool _isLoadingListings = true;
+  final LandListingService _landListingService = LandListingService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingListings = true;
+      });
+    }
+
+    try {
+      // Load all active listings that buyers can see
+      final allListings = await _landListingService.getActiveListings();
+      
+      // Filter out JV-only listings for buyers
+      _myListings = allListings.where((listing) => 
+        listing.isActive && 
+        listing.listingType != ListingType.jvOnly
+      ).toList();
+    } catch (e) {
+      print('Error loading buyer data: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingListings = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentUserAsync = ref.watch(authStateProvider);
 
     return Scaffold(
@@ -73,11 +117,99 @@ class BuyerProfilePage extends ConsumerWidget {
         children: [
           _buildProfileHeader(context, profile),
           const SizedBox(height: 24),
+          _buildMarketStats(context),
+          const SizedBox(height: 24),
           _buildPersonalInfo(context, profile),
           const SizedBox(height: 24),
           _buildPreferences(context, profile),
           const SizedBox(height: 24),
           _buildSubscriptionInfo(context, profile),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarketStats(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Market Overview',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryColor,
+              ),
+            ),
+            const Divider(),
+            if (_isLoadingListings)
+              const Center(child: CircularProgressIndicator())
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Available Listings',
+                      _myListings.length.toString(),
+                      Icons.home_work,
+                      AppTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Average Price',
+                      _calculateAveragePrice(),
+                      Icons.attach_money,
+                      AppTheme.successColor,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _calculateAveragePrice() {
+    if (_myListings.isEmpty) return 'N/A';
+    final total = _myListings.fold<double>(0, (sum, listing) => sum + listing.askingPrice);
+    final average = total / _myListings.length;
+    return 'AED ${(average / 1000000).toStringAsFixed(0)}M';
+  }
+
+  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -177,7 +309,7 @@ class BuyerProfilePage extends ConsumerWidget {
             if (profile.gfaRange != null)
               _buildDetailRow(context, 'GFA Range:', '${profile.gfaRange!['min']} - ${profile.gfaRange!['max']} sqft'),
             if (profile.budgetRange != null)
-              _buildDetailRow(context, 'Budget Range:', '\$${profile.budgetRange!['min']} - \$${profile.budgetRange!['max']}'),
+              _buildDetailRow(context, 'Budget Range:', 'AED ${profile.budgetRange!['min']} - AED ${profile.budgetRange!['max']}'),
           ],
         ),
       ),

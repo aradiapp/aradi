@@ -9,6 +9,7 @@ import 'package:aradi/features/onboarding/screens/kyc_page.dart';
 import 'package:aradi/features/auth/screens/auth_page.dart';
 import 'package:aradi/features/developer/screens/dev_home_page.dart';
 import 'package:aradi/features/developer/screens/dev_browse_page.dart';
+import 'package:aradi/features/developer/screens/dev_analytics_page.dart';
 import 'package:aradi/features/developer/screens/listing_detail_page.dart';
 import 'package:aradi/features/developer/screens/dev_profile_form_page.dart';
 import 'package:aradi/features/developer/screens/dev_profile_edit_page.dart';
@@ -75,10 +76,7 @@ class AppRouter {
       // Developer Routes
       GoRoute(
         path: '/dev',
-        builder: (context, state) => MainNavigation(
-          userRole: UserRole.developer,
-          child: const DevHomePage(),
-        ),
+        redirect: (context, state) => '/dev/browse', // Redirect to listings
       ),
       GoRoute(
         path: '/dev/listing/:id',
@@ -109,6 +107,13 @@ class AppRouter {
         builder: (context, state) => MainNavigation(
           userRole: UserRole.developer,
           child: const DevBrowsePage(),
+        ),
+      ),
+      GoRoute(
+        path: '/dev/analytics',
+        builder: (context, state) => MainNavigation(
+          userRole: UserRole.developer,
+          child: const DevAnalyticsPage(),
         ),
       ),
       

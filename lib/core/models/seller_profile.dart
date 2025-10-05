@@ -8,6 +8,7 @@ class SellerProfile {
   final String email;
   final String? tradeLicense;
   final String? companyTradeLicense;
+  final String? tradeLicenseDocumentUrl;
   final String passportOrEmiratesId;
   final String? logoUrl;
   final List<String> interestedDevelopers;
@@ -26,6 +27,7 @@ class SellerProfile {
     required this.email,
     this.tradeLicense,
     this.companyTradeLicense,
+    this.tradeLicenseDocumentUrl,
     required this.passportOrEmiratesId,
     this.logoUrl,
     this.interestedDevelopers = const [],
@@ -46,6 +48,7 @@ class SellerProfile {
       email: json['email'] as String,
       tradeLicense: json['tradeLicense'] as String?,
       companyTradeLicense: json['companyTradeLicense'] as String?,
+      tradeLicenseDocumentUrl: json['tradeLicenseDocumentUrl'] as String?,
       passportOrEmiratesId: json['passportOrEmiratesId'] as String,
       logoUrl: json['logoUrl'] as String?,
       interestedDevelopers: (json['interestedDevelopers'] as List<dynamic>?)
@@ -69,6 +72,7 @@ class SellerProfile {
       'email': email,
       'tradeLicense': tradeLicense,
       'companyTradeLicense': companyTradeLicense,
+      'tradeLicenseDocumentUrl': tradeLicenseDocumentUrl,
       'passportOrEmiratesId': passportOrEmiratesId,
       'logoUrl': logoUrl,
       'interestedDevelopers': interestedDevelopers,
@@ -89,6 +93,7 @@ class SellerProfile {
     String? email,
     String? tradeLicense,
     String? companyTradeLicense,
+    String? tradeLicenseDocumentUrl,
     String? passportOrEmiratesId,
     String? logoUrl,
     List<String>? interestedDevelopers,
@@ -107,6 +112,7 @@ class SellerProfile {
       email: email ?? this.email,
       tradeLicense: tradeLicense ?? this.tradeLicense,
       companyTradeLicense: companyTradeLicense ?? this.companyTradeLicense,
+      tradeLicenseDocumentUrl: tradeLicenseDocumentUrl ?? this.tradeLicenseDocumentUrl,
       passportOrEmiratesId: passportOrEmiratesId ?? this.passportOrEmiratesId,
       logoUrl: logoUrl ?? this.logoUrl,
       interestedDevelopers: interestedDevelopers ?? this.interestedDevelopers,

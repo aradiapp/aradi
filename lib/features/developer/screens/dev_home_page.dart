@@ -171,7 +171,7 @@ class _DevHomePageState extends ConsumerState<DevHomePage> {
                   child: _StatPill(
                     icon: Icons.pending,
                     label: 'Pipeline',
-                    value: profile.landsInPipeline.toString(),
+                    value: '0', // Removed landsInPipeline field
                     color: AppTheme.primaryColor,
                   ),
                 ),
@@ -325,7 +325,7 @@ class _LandListingCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          listing.location,
+                          '${listing.emirate}, ${listing.city}',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,

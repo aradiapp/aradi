@@ -168,12 +168,21 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       }
       
       // Handle home routes (only exact matches or routes that don't contain /browse or /profile)
-      if ((navRoute == '/dev' && (currentRoute == '/dev' || (currentRoute.startsWith('/dev') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add')))) ||
-          (navRoute == '/buyer' && (currentRoute == '/buyer' || (currentRoute.startsWith('/buyer') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add')))) ||
+      if ((navRoute == '/buyer' && (currentRoute == '/buyer' || (currentRoute.startsWith('/buyer') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add')))) ||
           (navRoute == '/seller' && (currentRoute == '/seller' || (currentRoute.startsWith('/seller') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add'))))) {
         _currentIndex = i;
         print('Home route match found: $navRoute at index $i');
         break;
+      }
+      
+      // Handle developer default route - redirect to listings
+      if (currentRoute == '/dev' || (currentRoute.startsWith('/dev') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/analytics'))) {
+        // Default to listings for developers
+        if (navRoute == '/dev/browse') {
+          _currentIndex = i;
+          print('Developer default route redirected to listings: $navRoute at index $i');
+          break;
+        }
       }
     }
     
@@ -215,14 +224,15 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute.contains('/land/add')) return 'Add Listing';
     if (currentRoute.contains('/notifications')) return 'Notifications';
     if (currentRoute.contains('/neg')) return 'Negotiations';
-    if (currentRoute == '/dev') return 'Developer Dashboard';
+    if (currentRoute == '/dev') return 'Listings'; // Redirected to browse
     if (currentRoute == '/buyer') return 'Buyer Dashboard';
     if (currentRoute == '/seller') return 'Seller Dashboard';
     if (currentRoute == '/admin') return '';
     if (currentRoute == '/admin/verification') return '';
     if (currentRoute == '/admin/settings') return '';
     if (currentRoute == '/admin/contract-queue') return '';
-    if (currentRoute.contains('/browse')) return 'Browse Listings';
+    if (currentRoute.contains('/browse')) return 'Listings';
+    if (currentRoute.contains('/analytics')) return 'Analytics';
     return AppConfig.appName;
   }
 
@@ -232,7 +242,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     
     switch (userRole) {
       case UserRole.developer:
-        return '/dev';
+        return '/dev/browse'; // Default to listings
       case UserRole.buyer:
         return '/buyer';
       case UserRole.seller:
@@ -342,18 +352,18 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       case UserRole.developer:
         result = [
           NavigationItem(
-            icon: Icons.home,
-            label: 'Home',
-            route: '/dev',
-          ),
-          NavigationItem(
-            icon: Icons.search,
-            label: 'Browse',
+            icon: Icons.list_alt,
+            label: 'Listings',
             route: '/dev/browse',
           ),
           NavigationItem(
+            icon: Icons.analytics,
+            label: 'Analytics',
+            route: '/dev/analytics',
+          ),
+          NavigationItem(
             icon: Icons.chat,
-            label: 'Chat',
+            label: 'Negotiations',
             route: '/neg',
           ),
           NavigationItem(
@@ -382,7 +392,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
           ),
           NavigationItem(
             icon: Icons.chat,
-            label: 'Chat',
+            label: 'Negotiations',
             route: '/neg',
           ),
           NavigationItem(
@@ -411,7 +421,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
           ),
           NavigationItem(
             icon: Icons.chat,
-            label: 'Chat',
+            label: 'Negotiations',
             route: '/neg',
           ),
           NavigationItem(
@@ -429,19 +439,19 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       case UserRole.admin:
         result = [
           NavigationItem(
-            icon: Icons.dashboard,
-            label: 'Dashboard',
+            icon: Icons.person,
+            label: 'KYC',
             route: '/admin',
+          ),
+          NavigationItem(
+            icon: Icons.list_alt,
+            label: 'Listings',
+            route: '/admin/verification',
           ),
           NavigationItem(
             icon: Icons.queue,
             label: 'Contract Queue',
             route: '/admin/contract-queue',
-          ),
-          NavigationItem(
-            icon: Icons.verified,
-            label: 'Verification',
-            route: '/admin/verification',
           ),
           NavigationItem(
             icon: Icons.settings,

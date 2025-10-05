@@ -53,7 +53,7 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
       // Filter out JV-only listings for buyers
       _listings = listings.where((listing) => 
         listing.isActive && 
-        listing.listingType != ListingType.jvOnly
+        listing.listingType != ListingType.jv
       ).toList();
       
       // Apply initial filter
@@ -277,7 +277,7 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
                 children: [
                   Expanded(
                     child: Text(
-                      listing.title,
+                      '${listing.emirate}, ${listing.city}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -303,7 +303,7 @@ class _BuyerBrowsePageState extends ConsumerState<BuyerBrowsePage> {
               ),
               const SizedBox(height: 8),
               Text(
-                listing.location,
+                '${listing.emirate}, ${listing.city}',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 14,

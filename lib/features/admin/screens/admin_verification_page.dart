@@ -7,6 +7,7 @@ import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 
 class AdminVerificationPage extends ConsumerStatefulWidget {
@@ -16,24 +17,14 @@ class AdminVerificationPage extends ConsumerStatefulWidget {
   ConsumerState<AdminVerificationPage> createState() => _AdminVerificationPageState();
 }
 
-class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> with TickerProviderStateMixin {
-  List<User> _pendingUsers = [];
+class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
   List<LandListing> _pendingListings = [];
   bool _isLoading = true;
-  int _selectedTab = 0;
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -42,14 +33,10 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
     });
 
     try {
-      final authService = ref.read(authServiceProvider);
       final landListingService = LandListingService();
-      
-      final users = await authService.getPendingKycUsers();
       final listings = await landListingService.getPendingListings();
       
       setState(() {
-        _pendingUsers = users;
         _pendingListings = listings;
         _isLoading = false;
       });
@@ -68,57 +55,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
     }
   }
 
-  Future<void> _approveUser(User user) async {
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.approveKycUser(user.id);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User approved successfully'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
-        _loadData(); // Refresh the list
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error approving user: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    }
-  }
 
-  Future<void> _rejectUser(User user) async {
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.rejectKycUser(user.id);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User rejected'),
-            backgroundColor: AppTheme.warningColor,
-          ),
-        );
-        _loadData(); // Refresh the list
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error rejecting user: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _approveListing(LandListing listing) async {
     try {
@@ -132,7 +69,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${listing.location} has been approved!'),
+            content: Text('${listing.emirate}, ${listing.city} has been approved!'),
             backgroundColor: AppTheme.successColor,
           ),
         );
@@ -161,7 +98,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${listing.location} has been rejected!'),
+            content: Text('${listing.emirate}, ${listing.city} has been rejected!'),
             backgroundColor: AppTheme.errorColor,
           ),
         );
@@ -182,177 +119,16 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Verification'),
+        title: const Text('Listings Review'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          Container(
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            child: TabBar(
-              controller: _tabController,
-              onTap: (index) {
-                setState(() {
-                  _selectedTab = index;
-                });
-              },
-              tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.person),
-                      const SizedBox(width: 8),
-                      Text('Users (${_pendingUsers.length})'),
-                    ],
-                  ),
-                ),
-                Tab(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.home),
-                      const SizedBox(width: 8),
-                      Text('Listings (${_pendingListings.length})'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _selectedTab == 0
-                    ? _buildUsersTab()
-                    : _buildListingsTab(),
-          ),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildListingsTab(),
     );
   }
 
-  Widget _buildUsersTab() {
-    if (_pendingUsers.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 64,
-              color: Colors.green,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'No pending KYC verifications',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'All users have been processed',
-              style: TextStyle(
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: _pendingUsers.length,
-      itemBuilder: (context, index) {
-        final user = _pendingUsers[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppTheme.primaryColor,
-                      child: Text(
-                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            user.email,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          Text(
-                            'Role: ${user.role.toString().split('.').last.toUpperCase()}',
-                            style: TextStyle(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _approveUser(user),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.successColor,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _rejectUser(user),
-                        icon: const Icon(Icons.close),
-                        label: const Text('Reject'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.errorColor,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildListingsTab() {
     if (_pendingListings.isEmpty) {
@@ -413,7 +189,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            listing.title.isNotEmpty ? listing.title : listing.location,
+                            '${listing.emirate}, ${listing.city}',
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -501,12 +277,10 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
           ),
           const SizedBox(height: 12),
           
-          // Location and Area
-          _buildDetailRow('Location', listing.location),
-          _buildDetailRow('Area', listing.area),
+          // Location Details (exactly what seller inputted)
+          _buildDetailRow('Emirate', listing.emirate),
           _buildDetailRow('City', listing.city),
-          _buildDetailRow('State', listing.state),
-          if (listing.zipCode.isNotEmpty) _buildDetailRow('ZIP Code', listing.zipCode),
+          _buildDetailRow('Area', listing.area),
           
           const SizedBox(height: 8),
           
@@ -520,6 +294,14 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
           _buildDetailRow('GFA', '${listing.gfa} sqm'),
           _buildDetailRow('Asking Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M'),
           _buildDetailRow('Ownership Type', listing.ownershipType.toString().split('.').last.toUpperCase()),
+          
+          // New fields from current form
+          if (listing.buildingSpecs?.isNotEmpty == true) 
+            _buildDetailRow('Building Specifications', listing.buildingSpecs!),
+          if (listing.gFloorSpecs?.isNotEmpty == true) 
+            _buildDetailRow('G Floor Specifications', listing.gFloorSpecs!),
+          if (listing.technicalSpecs?.isNotEmpty == true) 
+            _buildDetailRow('Technical Specifications', listing.technicalSpecs!),
           
           const SizedBox(height: 8),
           
@@ -561,8 +343,14 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
           // Listing Type
           _buildDetailRow('Listing Type', listing.listingType.toString().split('.').last.toUpperCase()),
           
-          // Description/Notes
-          if (listing.description.isNotEmpty) ...[
+          // Documents
+          if (listing.titleDeedDocumentUrl?.isNotEmpty == true) 
+            _buildDocumentRow('Title Deed Document', listing.titleDeedDocumentUrl!),
+          if (listing.dcrDocumentUrl?.isNotEmpty == true) 
+            _buildDocumentRow('DCR Document', listing.dcrDocumentUrl!),
+          
+          // Preferred Developers (if any)
+          if (listing.preferredDeveloperIds.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,7 +358,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
                 SizedBox(
                   width: 120,
                   child: Text(
-                    'Description:',
+                    'Preferred Developers:',
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: Colors.grey[700],
@@ -578,39 +366,29 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
                   ),
                 ),
                 Expanded(
-                  child: Text(
-                    listing.description,
-                    style: const TextStyle(fontSize: 14),
+                  child: FutureBuilder<List<String>>(
+                    future: _getDeveloperNames(listing.preferredDeveloperIds),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Text('Loading...', style: TextStyle(fontSize: 14));
+                      }
+                      if (snapshot.hasError) {
+                        return Text('Error: ${snapshot.error}', style: const TextStyle(fontSize: 14));
+                      }
+                      final developerNames = snapshot.data ?? [];
+                      return Text(
+                        developerNames.isEmpty 
+                          ? 'No developers found'
+                          : developerNames.join(', '),
+                        style: const TextStyle(fontSize: 14),
+                      );
+                    },
                   ),
                 ),
               ],
             ),
           ],
           
-          if (listing.notes.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: Text(
-                    'Notes:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    listing.notes,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-          ],
           
           const SizedBox(height: 8),
           
@@ -648,6 +426,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
       ),
     );
   }
+
 
   Widget _buildPhotosSection(LandListing listing) {
     final photos = listing.photos;
@@ -781,6 +560,345 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> w
         ),
       ),
     );
+  }
+
+  Future<void> _viewUserDetails(User user) async {
+    try {
+      print('=== VIEW USER DETAILS DEBUG ===');
+      print('User: ${user.name}');
+      print('Profile Picture URL: ${user.profilePictureUrl}');
+      print('Profile Picture URL is null: ${user.profilePictureUrl == null}');
+      print('Profile Picture URL is empty: ${user.profilePictureUrl?.isEmpty}');
+      print('================================');
+      
+      // Load detailed profile information based on user role
+      Map<String, dynamic>? profileData;
+      
+      if (user.role == UserRole.developer) {
+        final authService = ref.read(authServiceProvider);
+        final developerProfile = await authService.getDeveloperProfile(user.id);
+        if (developerProfile != null) {
+          profileData = {
+            'type': 'developer',
+            'companyName': developerProfile.companyName,
+            'companyEmail': developerProfile.companyEmail,
+            'companyPhone': developerProfile.companyPhone,
+            'businessModel': developerProfile.businessModel.toString().split('.').last,
+            'areasInterested': developerProfile.areasInterested,
+            'tradeLicense': developerProfile.tradeLicense,
+            'signatoryPassport': developerProfile.signatoryPassport,
+            'logoUrl': developerProfile.logoUrl,
+            'catalogDocumentUrl': developerProfile.catalogDocumentUrl,
+            'deliveredProjects': developerProfile.deliveredProjects,
+            'underConstruction': developerProfile.underConstruction,
+            // 'landsInPipeline': developerProfile.landsInPipeline, // Removed field
+            'teamSize': developerProfile.teamSize,
+          };
+        }
+      } else if (user.role == UserRole.seller) {
+        final authService = ref.read(authServiceProvider);
+        final sellerProfile = await authService.getSellerProfile(user.id);
+        if (sellerProfile != null) {
+          profileData = {
+            'type': 'seller',
+            'name': sellerProfile.name,
+            'email': sellerProfile.email,
+            'phone': sellerProfile.phone,
+            'passport': sellerProfile.passportOrEmiratesId,
+            'tradeLicense': sellerProfile.tradeLicense,
+            'tradeLicenseDocumentUrl': sellerProfile.tradeLicenseDocumentUrl,
+          };
+        }
+      } else if (user.role == UserRole.buyer) {
+        final authService = ref.read(authServiceProvider);
+        final buyerProfile = await authService.getBuyerProfile(user.id);
+        if (buyerProfile != null) {
+          profileData = {
+            'type': 'buyer',
+            'name': buyerProfile.name,
+            'email': buyerProfile.email,
+            'phone': buyerProfile.phone,
+            'passport': buyerProfile.passport,
+            'areasInterested': buyerProfile.areasInterested,
+            'gfaRange': buyerProfile.gfaRange,
+            'budgetRange': buyerProfile.budgetRange,
+          };
+        }
+      }
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => _buildUserDetailsDialog(user, profileData),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading user details: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildUserDetailsDialog(User user, Map<String, dynamic>? profileData) {
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    if (user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty) {
+                      _showFullscreenImage([user.profilePictureUrl!], 0);
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppTheme.primaryColor,
+                    backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty
+                        ? NetworkImage(user.profilePictureUrl!)
+                        : null,
+                    child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty
+                        ? Text(
+                            user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        user.email,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'Role: ${user.role.toString().split('.').last.toUpperCase()}',
+                        style: TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: SingleChildScrollView(
+                child: profileData != null ? _buildProfileDetails(profileData) : const Text('No profile data available'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileDetails(Map<String, dynamic> profileData) {
+    final type = profileData['type'] as String;
+    
+    if (type == 'developer') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDetailSection('Company Information', [
+            _buildDetailRow('Company Name', profileData['companyName']),
+            _buildDetailRow('Email', profileData['companyEmail']),
+            _buildDetailRow('Phone', profileData['companyPhone']),
+            _buildDetailRow('Business Model', profileData['businessModel']),
+          ]),
+          const SizedBox(height: 16),
+          _buildDetailSection('Areas of Interest', [
+            _buildDetailRow('Areas', (profileData['areasInterested'] as List<String>).join(', ')),
+          ]),
+          const SizedBox(height: 16),
+          _buildDetailSection('Company Stats', [
+            _buildDetailRow('Delivered Projects', profileData['deliveredProjects'].toString()),
+            _buildDetailRow('Under Construction', profileData['underConstruction'].toString()),
+            _buildDetailRow('Lands in Pipeline', profileData['landsInPipeline'].toString()),
+            _buildDetailRow('Team Size', profileData['teamSize'].toString()),
+          ]),
+          const SizedBox(height: 16),
+          _buildDetailSection('Documents', [
+            if (profileData['tradeLicense'] != null)
+              _buildDocumentRow('Trade License', profileData['tradeLicense']),
+            if (profileData['signatoryPassport'] != null)
+              _buildDocumentRow('Signatory Passport', profileData['signatoryPassport']),
+            if (profileData['catalogDocumentUrl'] != null)
+              _buildDocumentRow('Company Catalog', profileData['catalogDocumentUrl']),
+            if (profileData['logoUrl'] != null)
+              _buildDocumentRow('Company Logo', profileData['logoUrl']),
+          ]),
+        ],
+      );
+    } else if (type == 'seller') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDetailSection('Personal Information', [
+            _buildDetailRow('Name', profileData['name']),
+            _buildDetailRow('Email', profileData['email']),
+            _buildDetailRow('Phone', profileData['phone']),
+            _buildDetailRow('Passport', profileData['passport']),
+          ]),
+          const SizedBox(height: 16),
+          _buildDetailSection('Documents', [
+            if (profileData['tradeLicense'] != null)
+              _buildDetailRow('Trade License Number', profileData['tradeLicense']),
+            if (profileData['tradeLicenseDocumentUrl'] != null)
+              _buildDocumentRow('Trade License Document', profileData['tradeLicenseDocumentUrl']),
+          ]),
+        ],
+      );
+    } else if (type == 'buyer') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDetailSection('Personal Information', [
+            _buildDetailRow('Name', profileData['name']),
+            _buildDetailRow('Email', profileData['email']),
+            _buildDetailRow('Phone', profileData['phone']),
+            _buildDetailRow('Passport', profileData['passport']),
+          ]),
+          const SizedBox(height: 16),
+          _buildDetailSection('Investment Preferences', [
+            _buildDetailRow('Areas of Interest', (profileData['areasInterested'] as List<String>).join(', ')),
+            if (profileData['gfaRange'] != null)
+              _buildDetailRow('GFA Range', '${profileData['gfaRange']['min']} - ${profileData['gfaRange']['max']} sq ft'),
+            if (profileData['budgetRange'] != null)
+              _buildDetailRow('Budget Range', '${profileData['budgetRange']['min']} - ${profileData['budgetRange']['max']} AED'),
+          ]),
+        ],
+      );
+    }
+    
+    return const Text('Unknown profile type');
+  }
+
+  Widget _buildDetailSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...children,
+      ],
+    );
+  }
+
+
+  Widget _buildDocumentRow(String label, String url) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _showFullscreenImage([url], 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: AppTheme.primaryColor),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.visibility, size: 16, color: AppTheme.primaryColor),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'View Document',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<String>> _getDeveloperNames(List<String> developerIds) async {
+    try {
+      final developers = await FirebaseFirestore.instance
+          .collection('developerProfiles')
+          .where(FieldPath.documentId, whereIn: developerIds)
+          .get();
+      
+      return developers.docs
+          .map((doc) => doc.data()['companyName'] as String? ?? 'Unknown Company')
+          .toList();
+    } catch (e) {
+      print('Error fetching developer names: $e');
+      return [];
+    }
+  }
+
+  String _getEmirateFromLocation(String location) {
+    if (location.contains(',')) {
+      return location.split(',')[0].trim();
+    }
+    return location;
+  }
+
+  String _getCityFromLocation(String location) {
+    if (location.contains(',')) {
+      return location.split(',')[1].trim();
+    }
+    return location;
   }
 
 }

@@ -9,18 +9,23 @@ service cloud.firestore {
     }
     
     // Users can read and write their own user document, admins can read and write all
+    // Sellers can read users with developer role for preferred developers selection
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       allow read, write: if isAdmin();
+      // Allow sellers to read developer users for preferred developers selection
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'seller';
     }
     
-            // Developer profiles - users can read/write their own, admins can read all
-            match /developerProfiles/{userId} {
-              allow read, write: if request.auth != null && request.auth.uid == userId;
-              // Other users can read developer profiles for matching
-              allow read: if request.auth != null;
-              allow read, write: if isAdmin();
-            }
+    // Developer profiles - users can read/write their own, admins can read all
+    match /developerProfiles/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Other users can read developer profiles for matching
+      allow read: if request.auth != null;
+      allow read, write: if isAdmin();
+    }
     
     // Buyer profiles - users can read/write their own, admins can read all
     match /buyerProfiles/{userId} {

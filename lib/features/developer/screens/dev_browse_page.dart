@@ -379,7 +379,7 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
                 children: [
                   Expanded(
                     child: Text(
-                      listing.title,
+                      '${listing.emirate}, ${listing.city}',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -405,7 +405,7 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
               ),
               const SizedBox(height: 8),
               Text(
-                listing.location,
+                '${listing.emirate}, ${listing.city}',
                 style: TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 14,

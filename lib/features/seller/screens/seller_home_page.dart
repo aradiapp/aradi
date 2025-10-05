@@ -377,7 +377,7 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
                   children: [
                     // Header
                     Text(
-                      listing.location,
+                      '${listing.emirate}, ${listing.city}',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textPrimary,
@@ -599,7 +599,7 @@ class _ListingCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          listing.location,
+                          '${listing.emirate}, ${listing.city}',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
@@ -715,7 +715,7 @@ class _OfferCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      listing.location,
+                      '${listing.emirate}, ${listing.city}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textSecondary,
                       ),

@@ -15,9 +15,23 @@ class FirestoreUserRepository implements UserRepository {
     final firebaseUser = _auth.currentUser;
     if (firebaseUser == null) return null;
 
+    print('=== FIREBASE AUTH DEBUG ===');
+    print('Firebase Auth UID: ${firebaseUser.uid}');
+    print('Firebase Auth Email: ${firebaseUser.email}');
+    print('Firebase Auth Display Name: ${firebaseUser.displayName}');
+    print('============================');
+
     try {
       final doc = await _firestore.collection('users').doc(firebaseUser.uid).get();
-      if (!doc.exists) return null;
+      if (!doc.exists) {
+        print('No user document found for UID: ${firebaseUser.uid}');
+        return null;
+      }
+      
+      print('=== FIRESTORE USER DEBUG ===');
+      print('Document ID: ${doc.id}');
+      print('Document Data: ${doc.data()}');
+      print('============================');
       
       return User.fromJson(doc.data()!);
     } catch (e) {
@@ -252,7 +266,18 @@ class FirestoreUserRepository implements UserRepository {
         print('Pending User: ${doc.data()['email']}, ProfileComplete: ${doc.data()['isProfileComplete']}, KycVerified: ${doc.data()['isKycVerified']}');
       }
       
-      return pendingUsers.map((doc) => User.fromJson(doc.data())).toList();
+      final users = pendingUsers.map((doc) {
+        final userData = doc.data();
+        print('=== USER DATA DEBUG ===');
+        print('User: ${userData['email']}');
+        print('Profile Picture URL: ${userData['profilePictureUrl']}');
+        print('Profile Picture URL is null: ${userData['profilePictureUrl'] == null}');
+        print('Profile Picture URL is empty: ${userData['profilePictureUrl']?.toString().isEmpty}');
+        print('========================');
+        return User.fromJson(userData);
+      }).toList();
+      
+      return users;
     } catch (e) {
       print('Error getting pending KYC users: $e');
       return [];

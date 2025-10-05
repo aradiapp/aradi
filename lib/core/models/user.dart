@@ -14,9 +14,11 @@ class User {
   final bool isProfileComplete;
   final bool isKycVerified; // Admin verification status
   final bool wasKycRejected; // Track if user was previously approved then rejected
+  final String? kycRejectionReason; // Reason for KYC rejection
   final Map<String, dynamic>? profileData;
   final List<String>? interests;
   final String? avatarUrl;
+  final String? profilePictureUrl;
 
   const User({
     required this.id,
@@ -30,9 +32,11 @@ class User {
     this.isProfileComplete = false,
     this.isKycVerified = false,
     this.wasKycRejected = false,
+    this.kycRejectionReason,
     this.profileData,
     this.interests,
     this.avatarUrl,
+    this.profilePictureUrl,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -52,11 +56,13 @@ class User {
       isProfileComplete: json['isProfileComplete'] as bool? ?? false,
       isKycVerified: json['isKycVerified'] as bool? ?? false,
       wasKycRejected: json['wasKycRejected'] as bool? ?? false,
+      kycRejectionReason: json['kycRejectionReason'] as String?,
       profileData: json['profileData'] as Map<String, dynamic>?,
       interests: (json['interests'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
       avatarUrl: json['avatarUrl'] as String?,
+      profilePictureUrl: json['profilePictureUrl'] as String?,
     );
   }
 
@@ -73,9 +79,11 @@ class User {
         'isProfileComplete': isProfileComplete,
         'isKycVerified': isKycVerified,
         'wasKycRejected': wasKycRejected,
+        'kycRejectionReason': kycRejectionReason,
         'profileData': profileData,
       'interests': interests,
       'avatarUrl': avatarUrl,
+      'profilePictureUrl': profilePictureUrl,
     };
   }
 
@@ -91,9 +99,11 @@ class User {
     bool? isProfileComplete,
     bool? isKycVerified,
     bool? wasKycRejected,
+    String? kycRejectionReason,
     Map<String, dynamic>? profileData,
     List<String>? interests,
     String? avatarUrl,
+    String? profilePictureUrl,
   }) {
     return User(
       id: id ?? this.id,
@@ -107,9 +117,11 @@ class User {
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
       isKycVerified: isKycVerified ?? this.isKycVerified,
       wasKycRejected: wasKycRejected ?? this.wasKycRejected,
+      kycRejectionReason: kycRejectionReason ?? this.kycRejectionReason,
       profileData: profileData ?? this.profileData,
       interests: interests ?? this.interests,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      profilePictureUrl: profilePictureUrl ?? this.profilePictureUrl,
     );
   }
 

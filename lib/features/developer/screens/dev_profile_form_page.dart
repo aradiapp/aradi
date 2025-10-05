@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/core/models/developer_profile.dart';
+import 'package:aradi/core/models/user.dart';
 
 class DevProfileFormPage extends ConsumerWidget {
   const DevProfileFormPage({super.key});
@@ -53,7 +54,7 @@ class DevProfileFormPage extends ConsumerWidget {
                   child: Text('No developer profile found. Please complete your KYC first.'),
                 );
               }
-              return _buildProfileContent(context, profile);
+              return _buildProfileContent(context, profile, user);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(child: Text('Error: $error')),
@@ -65,25 +66,25 @@ class DevProfileFormPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileContent(BuildContext context, DeveloperProfile profile) {
+  Widget _buildProfileContent(BuildContext context, DeveloperProfile profile, User user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildProfileHeader(context, profile),
+          _buildProfileHeader(context, profile, user),
           const SizedBox(height: 24),
           _buildCompanyInfo(context, profile),
           const SizedBox(height: 24),
-          _buildBusinessDetails(context, profile),
-          const SizedBox(height: 24),
           _buildStatistics(context, profile),
+          const SizedBox(height: 24),
+          _buildDocuments(context, profile),
         ],
       ),
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context, DeveloperProfile profile) {
+  Widget _buildProfileHeader(BuildContext context, DeveloperProfile profile, User user) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -91,10 +92,22 @@ class DevProfileFormPage extends ConsumerWidget {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-              child: const Icon(Icons.business, size: 40, color: AppTheme.primaryColor),
+            GestureDetector(
+              onTap: () {
+                if (user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty) {
+                  _showImageDialog(context, user.profilePictureUrl!, 'Profile Picture');
+                }
+              },
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty
+                    ? NetworkImage(user.profilePictureUrl!)
+                    : null,
+                child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty
+                    ? const Icon(Icons.business, size: 40, color: AppTheme.primaryColor)
+                    : null,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -149,7 +162,7 @@ class DevProfileFormPage extends ConsumerWidget {
             _buildDetailRow(context, 'Company Name:', profile.companyName),
             _buildDetailRow(context, 'Email:', profile.companyEmail),
             _buildDetailRow(context, 'Phone:', profile.companyPhone),
-            _buildDetailRow(context, 'Business Model:', profile.businessModel.toString().split('.').last),
+            _buildDetailRow(context, 'Business Model:', _getBusinessModelDisplayName(profile.businessModel)),
             _buildDetailRow(context, 'Areas Interested:', profile.areasInterested.join(', ')),
           ],
         ),
@@ -196,7 +209,7 @@ class DevProfileFormPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Business Statistics',
+              'Developer Status',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryColor,
@@ -217,7 +230,7 @@ class DevProfileFormPage extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildStatItem(context, 'In Pipeline', profile.landsInPipeline.toString()),
+                  child: _buildStatItem(context, 'Total Value', '${(profile.totalValue / 1000000).toStringAsFixed(1)}M AED'),
                 ),
                 Expanded(
                   child: _buildStatItem(context, 'Team Size', profile.teamSize.toString()),
@@ -346,6 +359,154 @@ class DevProfileFormPage extends ConsumerWidget {
               ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDocuments(BuildContext context, DeveloperProfile profile) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Documents',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                  ),
+            ),
+            const Divider(),
+            if (profile.catalogDocumentUrl != null && profile.catalogDocumentUrl!.isNotEmpty) ...[
+              _buildDocumentItem(context, 'Company Catalog', profile.catalogDocumentUrl!),
+              const SizedBox(height: 12),
+            ],
+            _buildDocumentItem(context, 'Trade License', profile.tradeLicense),
+            const SizedBox(height: 12),
+            _buildDocumentItem(context, 'Signatory Passport', profile.signatoryPassport),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentItem(BuildContext context, String title, String url) {
+    return InkWell(
+      onTap: () {
+        // Open document in full screen
+        showDialog(
+          context: context,
+          builder: (context) => Dialog(
+            child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              child: Column(
+                children: [
+                  AppBar(
+                    title: Text(title),
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    actions: [
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  Expanded(
+                    child: InteractiveViewer(
+                      child: Image.network(
+                        url,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Text('Failed to load document'),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.description, color: AppTheme.primaryColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+            ),
+            Icon(Icons.visibility, color: AppTheme.primaryColor),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getBusinessModelDisplayName(BusinessModel businessModel) {
+    switch (businessModel) {
+      case BusinessModel.business:
+        return 'Land Acquisition';
+      case BusinessModel.venture:
+        return 'Joint Venture';
+      case BusinessModel.both:
+        return 'Both';
+    }
+  }
+
+  void _showImageDialog(BuildContext context, String imageUrl, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          child: Column(
+            children: [
+              AppBar(
+                title: Text(title),
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                actions: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: InteractiveViewer(
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Text('Failed to load image'),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

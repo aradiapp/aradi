@@ -84,34 +84,6 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
     }
   }
 
-  Future<void> _rejectUser(User user) async {
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.rejectKycUser(user.id);
-      
-      setState(() {
-        _pendingUsers.removeWhere((u) => u.id == user.id);
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User rejected'),
-            backgroundColor: AppTheme.warningColor,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error rejecting user: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    }
-  }
 
   void _reviewKyc(User user) {
     Navigator.of(context).push(
@@ -129,7 +101,7 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: const Text('KYC Review'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         actions: [
@@ -182,14 +154,27 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
                           children: [
                             Row(
                               children: [
-                                CircleAvatar(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  child: Text(
-                                    user.name[0].toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                GestureDetector(
+                                  onTap: () {
+                                    if (user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty) {
+                                      // TODO: Show full screen image
+                                    }
+                                  },
+                                  child: CircleAvatar(
+                                    radius: 30,
+                                    backgroundColor: AppTheme.primaryColor,
+                                    backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty
+                                        ? NetworkImage(user.profilePictureUrl!)
+                                        : null,
+                                    child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty
+                                        ? Text(
+                                            user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          )
+                                        : null,
                                   ),
                                 ),
                                 const SizedBox(width: 12),

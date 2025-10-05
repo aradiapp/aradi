@@ -5,6 +5,61 @@ import 'package:path/path.dart' as path;
 class PhotoUploadService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  /// Upload a profile picture to Firebase Storage
+  Future<String> uploadProfilePicture(File photoFile) async {
+    try {
+      print('Starting profile picture upload');
+      
+      // Check if file exists
+      if (!await photoFile.exists()) {
+        throw Exception('Profile picture file does not exist');
+      }
+      
+      // Create a unique filename
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(photoFile.path)}';
+      final ref = _storage.ref().child('profile_pictures/$fileName');
+      
+      print('Uploading profile picture to path: profile_pictures/$fileName');
+      
+      // Upload the file with metadata
+      final metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'type': 'profile_picture',
+        },
+      );
+      
+      final uploadTask = ref.putFile(photoFile, metadata);
+      
+      // Monitor upload progress
+      uploadTask.snapshotEvents.listen((snapshot) {
+        final progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        print('Profile picture upload progress: ${progress.toStringAsFixed(1)}%');
+      });
+      
+      // Wait for upload with timeout
+      final snapshot = await uploadTask.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception('Profile picture upload timeout - please check your internet connection');
+        },
+      );
+      
+      print('Profile picture upload completed, getting download URL...');
+      
+      // Get the download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('Profile picture download URL: $downloadUrl');
+      
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading profile picture: $e');
+      // Return a placeholder URL for development
+      return 'https://via.placeholder.com/150x150/007bff/ffffff?text=Profile+Picture';
+    }
+  }
+
   /// Upload a single photo to Firebase Storage
   Future<String> uploadPhoto(File photoFile, String listingId) async {
     try {
@@ -109,6 +164,61 @@ class PhotoUploadService {
     } catch (e) {
       print('Error deleting photos: $e');
       // Don't rethrow - some photos might already be deleted
+    }
+  }
+
+  /// Upload a document to Firebase Storage
+  Future<String> uploadDocument(File documentFile, String folder, String listingId) async {
+    try {
+      print('Starting document upload to folder: $folder');
+      
+      // Check if file exists
+      if (!await documentFile.exists()) {
+        throw Exception('Document file does not exist');
+      }
+      
+      // Create a unique filename
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(documentFile.path)}';
+      final ref = _storage.ref().child('$folder/$fileName');
+      
+      print('Uploading document to path: $folder/$fileName');
+      
+      // Upload the file with metadata
+      final metadata = SettableMetadata(
+        contentType: 'application/pdf', // Assuming PDF documents
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+          'type': 'document',
+          'listingId': listingId,
+        },
+      );
+      
+      final uploadTask = ref.putFile(documentFile, metadata);
+      
+      // Monitor upload progress
+      uploadTask.snapshotEvents.listen((snapshot) {
+        final progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        print('Document upload progress: ${progress.toStringAsFixed(1)}%');
+      });
+      
+      // Wait for upload with timeout
+      final snapshot = await uploadTask.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          throw Exception('Document upload timeout - please check your internet connection');
+        },
+      );
+      
+      print('Document upload completed, getting download URL...');
+      
+      // Get the download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      print('Document download URL: $downloadUrl');
+      
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading document: $e');
+      rethrow;
     }
   }
 }

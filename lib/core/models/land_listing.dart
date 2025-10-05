@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 enum OwnershipType { freehold, leasehold, gcc }
 enum PermissionType { residential, commercial, hotel, mix }
 enum ListingStatus { pending_verification, active, sold, expired, rejected }
-enum ListingType { buy, jv, both, jvOnly }
+enum ListingType { buy, jv, both }
 
 class LandListing {
   final String id;
@@ -11,7 +11,6 @@ class LandListing {
   final String sellerName;
   final double landSize; // in square meters
   final double gfa; // Gross Floor Area
-  final String location;
   final String area;
   final double askingPrice;
   final OwnershipType ownershipType;
@@ -26,18 +25,22 @@ class LandListing {
   final String? verifiedBy;
   
   // Additional properties for listing details
-  final String title;
   final String description;
+  final String emirate;
   final String city;
-  final String state;
-  final String zipCode;
   final List<String> developmentPermissions;
-  final String zoning;
   final ListingType listingType;
   final bool isActive;
   final bool isVerified;
   final List<String> photos;
-  final String notes;
+  
+  // New fields for title deed and building specs
+  final String? titleDeedDocumentUrl;
+  final String? dcrDocumentUrl;
+  final String? buildingSpecs;
+  final String? gFloorSpecs;
+  final String? technicalSpecs;
+  final List<String> preferredDeveloperIds;
 
   const LandListing({
     required this.id,
@@ -45,7 +48,6 @@ class LandListing {
     required this.sellerName,
     required this.landSize,
     required this.gfa,
-    required this.location,
     required this.area,
     required this.askingPrice,
     required this.ownershipType,
@@ -58,18 +60,20 @@ class LandListing {
     required this.updatedAt,
     this.verifiedAt,
     this.verifiedBy,
-    required this.title,
     required this.description,
+    required this.emirate,
     required this.city,
-    required this.state,
-    required this.zipCode,
     required this.developmentPermissions,
-    required this.zoning,
     this.listingType = ListingType.both,
     this.isActive = true,
     this.isVerified = false,
     this.photos = const [],
-    this.notes = '',
+    this.titleDeedDocumentUrl,
+    this.dcrDocumentUrl,
+    this.buildingSpecs,
+    this.gFloorSpecs,
+    this.technicalSpecs,
+    this.preferredDeveloperIds = const [],
   });
 
   factory LandListing.fromJson(Map<String, dynamic> json) {
@@ -79,7 +83,6 @@ class LandListing {
       sellerName: json['sellerName'] as String,
       landSize: (json['landSize'] as num).toDouble(),
       gfa: (json['gfa'] as num).toDouble(),
-      location: json['location'] as String,
       area: json['area'] as String,
       askingPrice: (json['askingPrice'] as num).toDouble(),
       ownershipType: OwnershipType.values.firstWhere(
@@ -117,15 +120,12 @@ class LandListing {
           ? (json['verifiedAt'] as Timestamp).toDate()
           : null,
       verifiedBy: json['verifiedBy'] as String?,
-      title: json['title'] as String? ?? 'Land Listing',
       description: json['description'] as String? ?? 'Premium land plot available for development',
+      emirate: json['emirate'] as String? ?? 'Dubai',
       city: json['city'] as String? ?? 'Dubai',
-      state: json['state'] as String? ?? 'Dubai',
-      zipCode: json['zipCode'] as String? ?? '00000',
       developmentPermissions: (json['developmentPermissions'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ?? ['Residential', 'Commercial'],
-      zoning: json['zoning'] as String? ?? 'Mixed Use',
       listingType: ListingType.values.firstWhere(
         (e) => e.toString().split('.').last == json['listingType'],
         orElse: () => ListingType.both,
@@ -135,7 +135,14 @@ class LandListing {
       photos: (json['photos'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ?? [],
-      notes: json['notes'] as String? ?? '',
+      titleDeedDocumentUrl: json['titleDeedDocumentUrl'] as String?,
+      dcrDocumentUrl: json['dcrDocumentUrl'] as String?,
+      buildingSpecs: json['buildingSpecs'] as String?,
+      gFloorSpecs: json['gFloorSpecs'] as String?,
+      technicalSpecs: json['technicalSpecs'] as String?,
+      preferredDeveloperIds: (json['preferredDeveloperIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ?? [],
     );
   }
 
@@ -146,7 +153,6 @@ class LandListing {
       'sellerName': sellerName,
       'landSize': landSize,
       'gfa': gfa,
-      'location': location,
       'area': area,
       'askingPrice': askingPrice,
       'ownershipType': ownershipType.toString().split('.').last,
@@ -161,18 +167,20 @@ class LandListing {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'verifiedAt': verifiedAt != null ? Timestamp.fromDate(verifiedAt!) : null,
       'verifiedBy': verifiedBy,
-      'title': title,
       'description': description,
+      'emirate': emirate,
       'city': city,
-      'state': state,
-      'zipCode': zipCode,
       'developmentPermissions': developmentPermissions,
-      'zoning': zoning,
       'listingType': listingType.toString().split('.').last,
       'isActive': isActive,
       'isVerified': isVerified,
       'photos': photos,
-      'notes': notes,
+      'titleDeedDocumentUrl': titleDeedDocumentUrl,
+      'dcrDocumentUrl': dcrDocumentUrl,
+      'buildingSpecs': buildingSpecs,
+      'gFloorSpecs': gFloorSpecs,
+      'technicalSpecs': technicalSpecs,
+      'preferredDeveloperIds': preferredDeveloperIds,
     };
   }
 
@@ -182,7 +190,6 @@ class LandListing {
     String? sellerName,
     double? landSize,
     double? gfa,
-    String? location,
     String? area,
     double? askingPrice,
     OwnershipType? ownershipType,
@@ -195,18 +202,20 @@ class LandListing {
     DateTime? updatedAt,
     DateTime? verifiedAt,
     String? verifiedBy,
-    String? title,
     String? description,
+    String? emirate,
     String? city,
-    String? state,
-    String? zipCode,
     List<String>? developmentPermissions,
-    String? zoning,
     ListingType? listingType,
     bool? isActive,
     bool? isVerified,
     List<String>? photos,
-    String? notes,
+    String? titleDeedDocumentUrl,
+    String? dcrDocumentUrl,
+    String? buildingSpecs,
+    String? gFloorSpecs,
+    String? technicalSpecs,
+    List<String>? preferredDeveloperIds,
   }) {
     return LandListing(
       id: id ?? this.id,
@@ -214,7 +223,6 @@ class LandListing {
       sellerName: sellerName ?? this.sellerName,
       landSize: landSize ?? this.landSize,
       gfa: gfa ?? this.gfa,
-      location: location ?? this.location,
       area: area ?? this.area,
       askingPrice: askingPrice ?? this.askingPrice,
       ownershipType: ownershipType ?? this.ownershipType,
@@ -227,18 +235,20 @@ class LandListing {
       updatedAt: updatedAt ?? this.updatedAt,
       verifiedAt: verifiedAt ?? this.verifiedAt,
       verifiedBy: verifiedBy ?? this.verifiedBy,
-      title: title ?? this.title,
       description: description ?? this.description,
+      emirate: emirate ?? this.emirate,
       city: city ?? this.city,
-      state: state ?? this.state,
-      zipCode: zipCode ?? this.zipCode,
       developmentPermissions: developmentPermissions ?? this.developmentPermissions,
-      zoning: zoning ?? this.zoning,
       listingType: listingType ?? this.listingType,
       isActive: isActive ?? this.isActive,
       isVerified: isVerified ?? this.isVerified,
       photos: photos ?? this.photos,
-      notes: notes ?? this.notes,
+      titleDeedDocumentUrl: titleDeedDocumentUrl ?? this.titleDeedDocumentUrl,
+      dcrDocumentUrl: dcrDocumentUrl ?? this.dcrDocumentUrl,
+      buildingSpecs: buildingSpecs ?? this.buildingSpecs,
+      gFloorSpecs: gFloorSpecs ?? this.gFloorSpecs,
+      technicalSpecs: technicalSpecs ?? this.technicalSpecs,
+      preferredDeveloperIds: preferredDeveloperIds ?? this.preferredDeveloperIds,
     );
   }
 
@@ -262,6 +272,6 @@ class LandListing {
 
   @override
   String toString() {
-    return 'LandListing(id: $id, location: $location, price: $askingPrice, status: $status)';
+    return 'LandListing(id: $id, location: $emirate, $city, price: $askingPrice, status: $status)';
   }
 }

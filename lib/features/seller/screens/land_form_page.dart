@@ -9,6 +9,7 @@ import 'package:aradi/app/providers/data_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 
 class LandFormPage extends ConsumerStatefulWidget {
@@ -20,17 +21,27 @@ class LandFormPage extends ConsumerStatefulWidget {
 
 class _LandFormPageState extends ConsumerState<LandFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _locationController = TextEditingController();
+  final _emirateController = TextEditingController();
+  final _cityController = TextEditingController();
   final _areaController = TextEditingController();
   final _landSizeController = TextEditingController();
   final _gfaController = TextEditingController();
   final _priceController = TextEditingController();
-  final _notesController = TextEditingController();
+  final _buildingSpecsController = TextEditingController();
+  final _gFloorSpecsController = TextEditingController();
+  final _technicalSpecsController = TextEditingController();
+  final _descriptionController = TextEditingController();
   
   String _selectedOwnership = 'freehold';
   ListingType _selectedListingType = ListingType.both;
   List<String> _selectedPermissions = [];
+  List<String> _selectedPreferredDevelopers = [];
   bool _isSubmitting = false;
+  
+  // Document upload variables
+  File? _titleDeedDocument;
+  File? _dcrDocument;
+  String _tempListingId = '';
   final LandListingService _landListingService = LandListingService();
   final PhotoUploadService _photoUploadService = PhotoUploadService();
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -43,12 +54,15 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
 
   @override
   void dispose() {
-    _locationController.dispose();
+    _emirateController.dispose();
+    _cityController.dispose();
     _areaController.dispose();
     _landSizeController.dispose();
     _gfaController.dispose();
     _priceController.dispose();
-    _notesController.dispose();
+    _buildingSpecsController.dispose();
+    _gFloorSpecsController.dispose();
+    _technicalSpecsController.dispose();
     super.dispose();
   }
 
@@ -80,13 +94,23 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               ),
               const SizedBox(height: 24),
 
-              // Location
+              // Emirate
               _buildTextField(
-                controller: _locationController,
-                label: 'Location',
-                hint: 'e.g., Dubai Marina',
+                controller: _emirateController,
+                label: 'Emirate',
+                hint: 'e.g., Dubai',
                 icon: Icons.location_on,
-                validator: (value) => value?.isEmpty == true ? 'Location is required' : null,
+                validator: (value) => value?.isEmpty == true ? 'Emirate is required' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // City
+              _buildTextField(
+                controller: _cityController,
+                label: 'City',
+                hint: 'e.g., Dubai',
+                icon: Icons.location_city,
+                validator: (value) => value?.isEmpty == true ? 'City is required' : null,
               ),
               const SizedBox(height: 16),
 
@@ -133,6 +157,17 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               ),
               const SizedBox(height: 16),
 
+              // Description
+              _buildTextField(
+                controller: _descriptionController,
+                label: 'Description',
+                hint: 'Describe the property and its features...',
+                icon: Icons.description,
+                maxLines: 3,
+                validator: (value) => value?.isEmpty == true ? 'Description is required' : null,
+              ),
+              const SizedBox(height: 16),
+
               // Ownership Type
               _buildOwnershipSelector(),
               const SizedBox(height: 16),
@@ -140,6 +175,52 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               // Listing Type
               _buildListingTypeSelector(),
               const SizedBox(height: 16),
+
+              // Title Deed Document (Required)
+              _buildDocumentUpload(
+                title: 'Title Deed Document *',
+                subtitle: 'Upload title deed or DCR document',
+                file: _titleDeedDocument,
+                onFileSelected: (file) => setState(() => _titleDeedDocument = file),
+                isRequired: true,
+              ),
+              const SizedBox(height: 16),
+
+              // Building Specifications
+              _buildTextField(
+                controller: _buildingSpecsController,
+                label: 'Building Specifications',
+                hint: 'Enter building specifications...',
+                icon: Icons.architecture,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+
+              // G Floor Specifications
+              _buildTextField(
+                controller: _gFloorSpecsController,
+                label: 'G Floor Specifications',
+                hint: 'Enter G floor specifications...',
+                icon: Icons.layers,
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+
+              // Technical Specifications
+              _buildTextField(
+                controller: _technicalSpecsController,
+                label: 'Technical Specifications',
+                hint: 'Enter technical building specifications...',
+                icon: Icons.engineering,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+
+              // Preferred Developers (for JV/Both)
+              if (_selectedListingType == ListingType.jv || _selectedListingType == ListingType.both)
+                _buildPreferredDevelopersSelector(),
+              if (_selectedListingType == ListingType.jv || _selectedListingType == ListingType.both)
+                const SizedBox(height: 16),
 
               // Photos
               _buildPhotoSelector(),
@@ -149,14 +230,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               _buildPermissionSelector(),
               const SizedBox(height: 16),
 
-              // Notes
-              _buildTextField(
-                controller: _notesController,
-                label: 'Additional Notes (Optional)',
-                hint: 'Any additional information about the land...',
-                icon: Icons.note,
-                maxLines: 3,
-              ),
               const SizedBox(height: 24),
 
               // Submit Button
@@ -379,18 +452,18 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               child: GestureDetector(
                 onTap: () {
                   setState(() {
-                    _selectedListingType = ListingType.jvOnly;
+                    _selectedListingType = ListingType.jv;
                   });
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
-                    color: _selectedListingType == ListingType.jvOnly
+                    color: _selectedListingType == ListingType.jv
                         ? AppTheme.primaryColor
                         : Colors.grey[100],
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: _selectedListingType == ListingType.jvOnly
+                      color: _selectedListingType == ListingType.jv
                           ? AppTheme.primaryColor
                           : Colors.grey[300]!,
                     ),
@@ -400,7 +473,7 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
                     children: [
                       Icon(
                         Icons.handshake,
-                        color: _selectedListingType == ListingType.jvOnly
+                        color: _selectedListingType == ListingType.jv
                             ? Colors.white
                             : Colors.grey[600],
                         size: 20,
@@ -409,7 +482,7 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
                       Text(
                         'JV Only',
                         style: TextStyle(
-                          color: _selectedListingType == ListingType.jvOnly
+                          color: _selectedListingType == ListingType.jv
                               ? Colors.white
                               : Colors.grey[600],
                           fontWeight: FontWeight.w500,
@@ -688,14 +761,14 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
       if (_selectedImages.isNotEmpty) {
         try {
           // Create a temporary listing ID for photo uploads
-          final tempListingId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+          _tempListingId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
           print('Attempting to upload ${_selectedImages.length} photos...');
           print('Photo files: ${_selectedImages.map((f) => f.path).toList()}');
           
           // Skip connection test to avoid double uploads
           print('Skipping connection test to avoid double uploads');
           
-          photoUrls = await _photoUploadService.uploadPhotos(_selectedImages, tempListingId);
+          photoUrls = await _photoUploadService.uploadPhotos(_selectedImages, _tempListingId);
           print('Photo upload completed: ${photoUrls.length} URLs received');
         } catch (e) {
           print('Photo upload failed: $e');
@@ -709,8 +782,9 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
         id: '', // Will be set by Firestore
         sellerId: currentUser.id,
         sellerName: currentUser.name,
-        location: _locationController.text.trim(),
         area: _areaController.text.trim(),
+        emirate: _emirateController.text.trim(),
+        city: _cityController.text.trim(),
         landSize: double.parse(_landSizeController.text.trim()),
         gfa: double.parse(_gfaController.text.trim()),
         askingPrice: double.parse(_priceController.text.trim()),
@@ -728,25 +802,67 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
         photoUrls: photoUrls, // Now using Firebase Storage URLs
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
-        title: _locationController.text.trim(),
-        description: _notesController.text.trim(),
-        city: _areaController.text.trim(),
-        state: _areaController.text.trim(),
-        zipCode: '',
-        zoning: '',
+        description: _descriptionController.text.trim(),
         developmentPermissions: _selectedPermissions,
         // Override defaults to ensure correct values
         listingType: _selectedListingType,
         isActive: false,
         isVerified: false,
         photos: [], // Keep photos empty, only use photoUrls for Firebase Storage URLs
-        notes: _notesController.text.trim(),
+        // New fields
+        buildingSpecs: _buildingSpecsController.text.trim(),
+        gFloorSpecs: _gFloorSpecsController.text.trim(),
+        technicalSpecs: _technicalSpecsController.text.trim(),
+        preferredDeveloperIds: _selectedPreferredDevelopers,
+      );
+
+      // Upload documents if provided
+      String? titleDeedUrl;
+      String? dcrUrl;
+      
+      if (_titleDeedDocument != null) {
+        try {
+          print('Uploading title deed document...');
+          titleDeedUrl = await _photoUploadService.uploadDocument(
+            _titleDeedDocument!,
+            'title_deeds',
+            _tempListingId,
+          );
+          print('Title deed uploaded: $titleDeedUrl');
+        } catch (e) {
+          print('Title deed upload failed: $e');
+        }
+      }
+
+      if (_dcrDocument != null) {
+        try {
+          print('Uploading DCR document...');
+          dcrUrl = await _photoUploadService.uploadDocument(
+            _dcrDocument!,
+            'dcr_documents',
+            _tempListingId,
+          );
+          print('DCR document uploaded: $dcrUrl');
+        } catch (e) {
+          print('DCR document upload failed: $e');
+        }
+      }
+
+      // Update listing with document URLs
+      final updatedListing = listing.copyWith(
+        titleDeedDocumentUrl: titleDeedUrl,
+        dcrDocumentUrl: dcrUrl,
       );
 
       // Save to Firebase
       print('Saving listing to Firestore...');
-      await _landListingService.createListing(listing);
+      await _landListingService.createListing(updatedListing);
       print('Listing saved successfully!');
+
+      // Send notifications to preferred developers
+      if (_selectedPreferredDevelopers.isNotEmpty) {
+        await _sendNotificationsToDevelopers(updatedListing);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -773,6 +889,340 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
           _isSubmitting = false;
         });
       }
+    }
+  }
+
+  // New method for document upload
+  Widget _buildDocumentUpload({
+    required String title,
+    required String subtitle,
+    required File? file,
+    required Function(File?) onFileSelected,
+    bool isRequired = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: file != null ? AppTheme.primaryColor : Colors.grey.shade300,
+          width: file != null ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.description,
+                color: file != null ? AppTheme.primaryColor : Colors.grey.shade600,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: file != null ? AppTheme.primaryColor : Colors.grey.shade800,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (file != null)
+                Icon(
+                  Icons.check_circle,
+                  color: AppTheme.successColor,
+                  size: 20,
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _pickDocument(onFileSelected),
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: Text(file != null ? 'Change Document' : 'Upload Document'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: file != null ? AppTheme.primaryColor : Colors.grey.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              if (file != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => onFileSelected(null),
+                  icon: const Icon(Icons.delete, color: AppTheme.errorColor),
+                  tooltip: 'Remove document',
+                ),
+              ],
+            ],
+          ),
+          if (file != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Selected: ${file.path.split('/').last}',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Method to pick document
+  Future<void> _pickDocument(Function(File?) onFileSelected) async {
+    try {
+      final result = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      
+      if (result != null) {
+        onFileSelected(File(result.path));
+      }
+    } catch (e) {
+      print('Error picking document: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking document: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  // Method for preferred developers selector
+  Widget _buildPreferredDevelopersSelector() {
+    return Consumer(
+      builder: (context, ref, child) {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _getVerifiedDevelopers(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Text(
+                  'Error loading developers: ${snapshot.error}',
+                  style: const TextStyle(color: AppTheme.errorColor),
+                ),
+              );
+            }
+
+            final developers = snapshot.data ?? [];
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.business, color: AppTheme.primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Preferred Developers',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select developers you would like to work with for this listing',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (developers.isEmpty)
+                    Text(
+                      'No verified developers available',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: developers.map((dev) {
+                        final isSelected = _selectedPreferredDevelopers.contains(dev['id']);
+                        return FilterChip(
+                          label: Text(dev['companyName'] ?? 'Unknown Company'),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedPreferredDevelopers.add(dev['id']);
+                              } else {
+                                _selectedPreferredDevelopers.remove(dev['id']);
+                              }
+                            });
+                          },
+                          selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                          checkmarkColor: AppTheme.primaryColor,
+                        );
+                      }).toList(),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Method to get verified developers
+  Future<List<Map<String, dynamic>>> _getVerifiedDevelopers() async {
+    try {
+      print('Fetching verified developers...');
+      
+      // Get all developers from Firestore (we'll filter by isVerified in the app)
+      final developers = await FirebaseFirestore.instance
+          .collection('developerProfiles')
+          .get();
+
+      print('Found ${developers.docs.length} developer profiles');
+      
+      // Debug: Print all documents to see what's in the collection
+      for (var doc in developers.docs) {
+        print('Developer doc ${doc.id}: ${doc.data()}');
+      }
+      
+      // Get all users with developer role to check KYC status
+      final users = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'developer')
+          .get();
+      
+      print('Found ${users.docs.length} users with developer role');
+      
+      // Create a map of userId -> isKycVerified
+      final Map<String, bool> userKycStatus = {};
+      for (var userDoc in users.docs) {
+        final userData = userDoc.data();
+        final userId = userDoc.id;
+        final isKycVerified = userData['isKycVerified'] == true;
+        userKycStatus[userId] = isKycVerified;
+        print('User ${userData['email']}: isKycVerified = $isKycVerified');
+      }
+
+      final verifiedDevelopers = developers.docs.where((doc) {
+        final data = doc.data();
+        final userId = data['userId'] ?? doc.id;
+        final isKycVerified = userKycStatus[userId] ?? false;
+        print('Developer ${data['companyName']}: isKycVerified = $isKycVerified');
+        return isKycVerified;
+      }).map((doc) {
+        final data = doc.data();
+        final developer = {
+          'id': doc.id,
+          'companyName': data['companyName'] ?? 'Unknown Company',
+          'companyEmail': data['companyEmail'] ?? '',
+          'userId': data['userId'] ?? doc.id,
+        };
+        print('Added verified developer: ${developer['companyName']}');
+        return developer;
+      }).toList();
+
+      print('Returning ${verifiedDevelopers.length} verified developers');
+      return verifiedDevelopers;
+    } catch (e) {
+      print('Error fetching developers: $e');
+      return [];
+    }
+  }
+
+  // Method to send notifications to preferred developers
+  Future<void> _sendNotificationsToDevelopers(LandListing listing) async {
+    try {
+      print('Sending notifications to ${_selectedPreferredDevelopers.length} developers...');
+      
+      // Get developer details for notifications
+      final developers = await _getVerifiedDevelopers();
+      final selectedDevelopers = developers.where((dev) => 
+        _selectedPreferredDevelopers.contains(dev['id'])).toList();
+
+      for (final developer in selectedDevelopers) {
+        try {
+          // Create notification for each developer
+          await FirebaseFirestore.instance.collection('notifications').add({
+            'userId': developer['userId'],
+            'title': 'New Listing Available',
+            'body': 'A new land listing has been created that matches your preferences: ${listing.emirate}, ${listing.city}',
+            'type': 'new_listing',
+            'data': {
+              'listingId': listing.id,
+              'sellerId': listing.sellerId,
+              'location': '${listing.emirate}, ${listing.city}',
+              'price': listing.askingPrice,
+            },
+            'createdAt': FieldValue.serverTimestamp(),
+            'isRead': false,
+          });
+          
+          print('Notification sent to developer: ${developer['companyName']}');
+        } catch (e) {
+          print('Error sending notification to ${developer['companyName']}: $e');
+        }
+      }
+      
+      print('Notifications sent to ${selectedDevelopers.length} developers');
+    } catch (e) {
+      print('Error sending notifications: $e');
     }
   }
 }

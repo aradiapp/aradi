@@ -8,6 +8,7 @@ import 'package:aradi/core/models/buyer_profile.dart';
 import 'package:aradi/core/models/seller_profile.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
+import 'package:aradi/features/admin/widgets/kyc_rejection_dialog.dart';
 
 class KycReviewPage extends ConsumerStatefulWidget {
   final User user;
@@ -98,29 +99,39 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
   }
 
   Future<void> _rejectUser() async {
-    try {
-      final authService = ref.read(authServiceProvider);
-      await authService.rejectKycUser(widget.user.id);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User rejected'),
-            backgroundColor: AppTheme.warningColor,
-          ),
-        );
-        context.pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error rejecting user: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    }
+    showDialog(
+      context: context,
+      builder: (context) => KycRejectionDialog(
+        userName: widget.user.name,
+        userEmail: widget.user.email,
+        onReject: (rejectionReason) async {
+          try {
+            final authService = ref.read(authServiceProvider);
+            await authService.rejectKycUser(widget.user.id, rejectionReason: rejectionReason);
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('User rejected'),
+                  backgroundColor: AppTheme.warningColor,
+                ),
+              );
+              context.pop();
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error rejecting user: $e'),
+                  backgroundColor: AppTheme.errorColor,
+                ),
+              );
+            }
+            rethrow;
+          }
+        },
+      ),
+    );
   }
 
   Widget _buildDocumentImage(String? imageUrl, String title) {
@@ -256,6 +267,22 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
         ]),
         const SizedBox(height: 24),
         const Text(
+          'Company Statistics',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildInfoCard([
+          _buildInfoRow('Delivered Projects', profile.deliveredProjects.toString()),
+          _buildInfoRow('Under Construction', profile.underConstruction.toString()),
+          _buildInfoRow('Team Size', profile.teamSize.toString()),
+          _buildInfoRow('Total Value', '${profile.totalValue.toString()} AED'),
+        ]),
+        const SizedBox(height: 24),
+        const Text(
           'Documents',
           style: TextStyle(
             fontSize: 20,
@@ -267,6 +294,10 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
         _buildDocumentImage(profile.tradeLicense, 'Trade License'),
         const SizedBox(height: 16),
         _buildDocumentImage(profile.signatoryPassport, 'Signatory Passport'),
+        if (profile.catalogDocumentUrl != null && profile.catalogDocumentUrl!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildDocumentImage(profile.catalogDocumentUrl, 'Company Catalog'),
+        ],
         if (profile.logoUrl != null && profile.logoUrl!.isNotEmpty) ...[
           const SizedBox(height: 16),
           _buildDocumentImage(profile.logoUrl, 'Company Logo'),
@@ -358,8 +389,14 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
         ),
         const SizedBox(height: 16),
         _buildDocumentImage(profile.passportOrEmiratesId, 'Passport or Emirates ID'),
-        const SizedBox(height: 16),
-        _buildDocumentImage(profile.tradeLicense, 'Trade License'),
+        if (profile.tradeLicenseDocumentUrl != null && profile.tradeLicenseDocumentUrl!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildDocumentImage(profile.tradeLicenseDocumentUrl, 'Trade License Document'),
+        ],
+        if (profile.tradeLicense != null && profile.tradeLicense!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildDocumentImage(profile.tradeLicense, 'Trade License'),
+        ],
         if (profile.companyTradeLicense != null && profile.companyTradeLicense!.isNotEmpty) ...[
           const SizedBox(height: 16),
           _buildDocumentImage(profile.companyTradeLicense, 'Company Trade License'),
@@ -449,16 +486,28 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
                         children: [
                           Row(
                             children: [
-                              CircleAvatar(
-                                backgroundColor: AppTheme.primaryColor,
-                                radius: 30,
-                                child: Text(
-                                  widget.user.name[0].toUpperCase(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              GestureDetector(
+                                onTap: () {
+                                  if (widget.user.profilePictureUrl != null && widget.user.profilePictureUrl!.isNotEmpty) {
+                                    _showImageDialog(widget.user.profilePictureUrl!, 'Profile Picture');
+                                  }
+                                },
+                                child: CircleAvatar(
+                                  radius: 30,
+                                  backgroundColor: AppTheme.primaryColor,
+                                  backgroundImage: widget.user.profilePictureUrl != null && widget.user.profilePictureUrl!.isNotEmpty
+                                      ? NetworkImage(widget.user.profilePictureUrl!)
+                                      : null,
+                                  child: widget.user.profilePictureUrl == null || widget.user.profilePictureUrl!.isEmpty
+                                      ? Text(
+                                          widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : 'U',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
                                 ),
                               ),
                               const SizedBox(width: 16),

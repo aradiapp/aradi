@@ -298,6 +298,28 @@ class NotificationService {
       },
     );
   }
+
+  // Send notification for KYC rejection
+  Future<void> notifyKycRejection({
+    required String recipientId,
+    required String? rejectionReason,
+  }) async {
+    final title = 'KYC Application Rejected';
+    final body = rejectionReason != null 
+        ? 'Your KYC application has been rejected. Reason: $rejectionReason'
+        : 'Your KYC application has been rejected. Please review your information and resubmit.';
+    
+    await createNotificationEvent(
+      userId: recipientId,
+      type: NotificationType.kycRejected,
+      title: title,
+      body: body,
+      data: {
+        'type': 'kyc_rejection',
+        'reason': rejectionReason ?? '',
+      },
+    );
+  }
 }
 
 // Background message handler

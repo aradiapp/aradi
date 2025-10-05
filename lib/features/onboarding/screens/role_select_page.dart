@@ -49,16 +49,6 @@ class RoleSelectPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     _RoleCard(
-                      role: UserRole.buyer,
-                      title: 'Buyer',
-                      subtitle: 'Purchase land and properties',
-                      description: 'Browse verified listings and make investment decisions',
-                      icon: Icons.shopping_cart,
-                      color: AppTheme.secondaryColor,
-                      onTap: () => context.go('/kyc/buyer'),
-                    ),
-                    const SizedBox(height: 20),
-                    _RoleCard(
                       role: UserRole.seller,
                       title: 'Seller',
                       subtitle: 'List your land for sale',

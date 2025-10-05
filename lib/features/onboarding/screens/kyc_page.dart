@@ -12,7 +12,52 @@ import 'package:aradi/core/models/user.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'dart:io';
 
-
+// Dubai areas list for developers
+const List<String> _dubaiAreas = [
+  'Abu Hail',
+  'Al Barsha',
+  'Al Furjan',
+  'Al Habtoor City',
+  'Al Jaddaf',
+  'Al Quoz',
+  'Al Safa',
+  'Al Sufouh',
+  'Arabian Ranches',
+  'Arjan (Dubailand)',
+  'Barsha Heights',
+  'Bluewaters Island',
+  'Business Bay',
+  'City Walk',
+  'Culture Village',
+  'Deira',
+  'DIFC (Dubai International Financial Centre)',
+  'Dubai Creek Harbour',
+  'Dubai Hills Estate',
+  'Dubai International City',
+  'Dubai Marina',
+  'Dubai Media City',
+  'Dubai Silicon Oasis',
+  'Downtown Dubai',
+  'Emaar Beachfront',
+  'Emirates Hills',
+  'JBR (Jumeirah Beach Residence)',
+  'JLT (Jumeirah Lake Towers)',
+  'JVC (Jumeirah Village Circle)',
+  'JVT (Jumeirah Village Triangle)',
+  'Madinat Jumeirah Living (MJL)',
+  'Meadows',
+  'Mina Rashid',
+  'Motor City',
+  'Mudon',
+  'Nad Al Sheba',
+  'Palm Jumeirah',
+  'Port de La Mer',
+  'Tilal Al Ghaf',
+  'The Springs',
+  'The Views',
+  'The Villa',
+  'Victory Heights',
+];
 
 class KYCPage extends ConsumerStatefulWidget {
   final String role;
@@ -33,6 +78,13 @@ class _KYCPageState extends ConsumerState<KYCPage> {
   File? _tradeLicenseFile;
   File? _signatoryPassportFile;
   File? _logoFile;
+  File? _catalogDocumentFile;
+  
+  // Areas of interest (for developers)
+  List<String> _selectedAreas = [];
+  
+  // Business model (for developers)
+  String? _selectedBusinessModel;
 
   // Helper method to create consistent input decoration
   InputDecoration _createInputDecoration({
@@ -236,38 +288,13 @@ class _KYCPageState extends ConsumerState<KYCPage> {
           validator: _requiredValidator,
         ),
         const SizedBox(height: 20),
-        FormBuilderDropdown<String>(
-          name: 'businessModel',
-          decoration: _createInputDecoration(
-            labelText: 'Business Model *',
-            hintText: 'Select your business model',
-            icon: Icons.model_training,
-          ),
-          items: const [
-            DropdownMenuItem(
-              value: 'business',
-              child: Text('Business Development'),
-            ),
-            DropdownMenuItem(
-              value: 'venture',
-              child: Text('Venture Development'),
-            ),
-            DropdownMenuItem(
-              value: 'both',
-              child: Text('Both'),
-            ),
-          ],
-          validator: _requiredValidator,
-        ),
+        _buildBusinessModelSection(),
         const SizedBox(height: 20),
-        FormBuilderTextField(
-          name: 'areasInterested',
-          decoration: _createInputDecoration(
-            labelText: 'Areas of Interest',
-            hintText: 'e.g., Dubai Marina, Palm Jumeirah (comma separated)',
-            icon: Icons.location_on,
-          ),
-        ),
+        _buildAreasOfInterestSection(),
+        const SizedBox(height: 20),
+        
+        // Company Statistics Section
+        _buildCompanyStatsSection(),
         const SizedBox(height: 20),
         
         // File Upload Section
@@ -446,6 +473,307 @@ class _KYCPageState extends ConsumerState<KYCPage> {
     );
   }
 
+  Widget _buildBusinessModelSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Business Model',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select your business model',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedBusinessModel = 'jointVenture';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedBusinessModel == 'jointVenture'
+                            ? AppTheme.primaryColor
+                            : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _selectedBusinessModel == 'jointVenture'
+                              ? AppTheme.primaryColor
+                              : Colors.grey[300]!,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.handshake,
+                            color: _selectedBusinessModel == 'jointVenture'
+                                ? Colors.white
+                                : Colors.grey[600],
+                            size: 20,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Joint Venture',
+                            style: TextStyle(
+                              color: _selectedBusinessModel == 'jointVenture'
+                                  ? Colors.white
+                                  : Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedBusinessModel = 'landAcquisition';
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: _selectedBusinessModel == 'landAcquisition'
+                            ? AppTheme.primaryColor
+                            : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _selectedBusinessModel == 'landAcquisition'
+                              ? AppTheme.primaryColor
+                              : Colors.grey[300]!,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.landscape,
+                            color: _selectedBusinessModel == 'landAcquisition'
+                                ? Colors.white
+                                : Colors.grey[600],
+                            size: 20,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Land Acquisition',
+                            style: TextStyle(
+                              color: _selectedBusinessModel == 'landAcquisition'
+                                  ? Colors.white
+                                  : Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedBusinessModel = 'both';
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: _selectedBusinessModel == 'both'
+                        ? AppTheme.primaryColor
+                        : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedBusinessModel == 'both'
+                          ? AppTheme.primaryColor
+                          : Colors.grey[300]!,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.business,
+                        color: _selectedBusinessModel == 'both'
+                            ? Colors.white
+                            : Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Both',
+                        style: TextStyle(
+                          color: _selectedBusinessModel == 'both'
+                              ? Colors.white
+                              : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAreasOfInterestSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Areas of Interest',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select areas you are interested in developing',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _dubaiAreas.map((area) {
+              final isSelected = _selectedAreas.contains(area);
+              return FilterChip(
+                label: Text(area),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedAreas.add(area);
+                    } else {
+                      _selectedAreas.remove(area);
+                    }
+                  });
+                },
+                selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                checkmarkColor: AppTheme.primaryColor,
+                labelStyle: TextStyle(
+                  color: isSelected ? AppTheme.primaryColor : AppTheme.textPrimary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompanyStatsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Company Statistics',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Provide information about your company\'s project portfolio',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        
+        // Delivered Projects
+        FormBuilderTextField(
+          name: 'deliveredProjects',
+          decoration: _createInputDecoration(
+            labelText: 'Delivered Projects',
+            hintText: 'Number of completed projects',
+            icon: Icons.check_circle,
+          ),
+          keyboardType: TextInputType.number,
+          initialValue: '0',
+        ),
+        const SizedBox(height: 16),
+        
+        // Under Construction
+        FormBuilderTextField(
+          name: 'underConstruction',
+          decoration: _createInputDecoration(
+            labelText: 'Under Construction',
+            hintText: 'Number of projects currently under construction',
+            icon: Icons.construction,
+          ),
+          keyboardType: TextInputType.number,
+          initialValue: '0',
+        ),
+        const SizedBox(height: 16),
+        
+        // Total Value
+        FormBuilderTextField(
+          name: 'totalValue',
+          decoration: _createInputDecoration(
+            labelText: 'Total Value (AED)',
+            hintText: 'Total value of all projects in AED',
+            icon: Icons.attach_money,
+          ),
+          keyboardType: TextInputType.number,
+          initialValue: '0',
+        ),
+        const SizedBox(height: 16),
+        
+        // Team Size
+        FormBuilderTextField(
+          name: 'teamSize',
+          decoration: _createInputDecoration(
+            labelText: 'Team Size',
+            hintText: 'Number of team members',
+            icon: Icons.group,
+          ),
+          keyboardType: TextInputType.number,
+          initialValue: '0',
+        ),
+      ],
+    );
+  }
+
   String _getRoleTitle() {
     switch (widget.role) {
       case 'developer':
@@ -491,6 +819,13 @@ class _KYCPageState extends ConsumerState<KYCPage> {
             label: 'Company Logo (Optional)',
             file: _logoFile,
             onTap: () => _pickFile('logo'),
+            required: false,
+          ),
+          const SizedBox(height: 12),
+          _buildFileUploadButton(
+            label: 'Company Catalog (Optional)',
+            file: _catalogDocumentFile,
+            onTap: () => _pickFile('catalogDocument'),
             required: false,
           ),
         ] else if (widget.role == 'buyer') ...[
@@ -652,6 +987,11 @@ class _KYCPageState extends ConsumerState<KYCPage> {
               print('Set _logoFile to: $_logoFile');
               print('_logoFile exists after set: ${_logoFile?.existsSync()}');
               break;
+            case 'catalogDocument':
+              _catalogDocumentFile = selectedFile;
+              print('Set _catalogDocumentFile to: $_catalogDocumentFile');
+              print('_catalogDocumentFile exists after set: ${_catalogDocumentFile?.existsSync()}');
+              break;
           }
         });
         print('File upload completed for type: $type');
@@ -772,6 +1112,11 @@ class _KYCPageState extends ConsumerState<KYCPage> {
           uploadedFiles['logo'] = await fileUploadService.uploadFile(_logoFile!, 'kyc/logos');
           print('Logo uploaded: ${uploadedFiles['logo']}');
         }
+        if (_catalogDocumentFile != null) {
+          print('Uploading catalog document file...');
+          uploadedFiles['catalogDocument'] = await fileUploadService.uploadFile(_catalogDocumentFile!, 'kyc/catalog_documents');
+          print('Catalog document uploaded: ${uploadedFiles['catalogDocument']}');
+        }
         print('All files uploaded successfully');
         print('========================');
         
@@ -856,11 +1201,16 @@ class _KYCPageState extends ConsumerState<KYCPage> {
       tradeLicense: uploadedFiles['tradeLicense']!, // Use uploaded file, not form data
       signatoryPassport: uploadedFiles['signatoryPassport']!, // Use uploaded file, not form data
       businessModel: BusinessModel.values.firstWhere(
-        (e) => e.toString().split('.').last == formData['businessModel'],
+        (e) => e.toString().split('.').last == _selectedBusinessModel,
         orElse: () => BusinessModel.business,
       ),
-      areasInterested: (formData['areasInterested'] as String?)?.split(',').map((e) => e.trim()).toList() ?? [],
+      areasInterested: _selectedAreas, // Use the selected areas from filter chips
       logoUrl: uploadedFiles['logo'], // This can be null if not provided
+      catalogDocumentUrl: uploadedFiles['catalogDocument'], // This can be null if not provided
+      deliveredProjects: int.tryParse(formData['deliveredProjects'] ?? '0') ?? 0,
+      underConstruction: int.tryParse(formData['underConstruction'] ?? '0') ?? 0,
+      teamSize: int.tryParse(formData['teamSize'] ?? '0') ?? 0,
+      totalValue: int.tryParse(formData['totalValue'] ?? '0') ?? 0,
     );
   }
   

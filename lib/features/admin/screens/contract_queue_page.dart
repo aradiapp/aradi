@@ -49,7 +49,8 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
         sellerName: 'Fatima Al Zahra',
         landSize: 5000.0,
         gfa: 15000.0,
-        location: 'Dubai Marina',
+        emirate: 'Dubai',
+        city: 'Marina',
         area: 'Dubai Marina',
         askingPrice: 25000000.0,
         ownershipType: OwnershipType.freehold,
@@ -58,13 +59,8 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
         status: ListingStatus.pending_verification,
         createdAt: DateTime.now().subtract(const Duration(days: 5)),
         updatedAt: DateTime.now().subtract(const Duration(days: 5)),
-        title: 'Premium Marina Land Plot',
         description: 'Prime location land plot in Dubai Marina with excellent development potential',
-        city: 'Dubai',
-        state: 'Dubai',
-        zipCode: '00000',
         developmentPermissions: ['Residential', 'Commercial'],
-        zoning: 'Mixed Use',
       ),
       LandListing(
         id: 'listing_2',
@@ -72,7 +68,8 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
         sellerName: 'Ahmed Al Mansouri',
         landSize: 3000.0,
         gfa: 9000.0,
-        location: 'Business Bay',
+        emirate: 'Dubai',
+        city: 'Business Bay',
         area: 'Business Bay',
         askingPrice: 18000000.0,
         ownershipType: OwnershipType.freehold,
@@ -81,13 +78,8 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
         status: ListingStatus.pending_verification,
         createdAt: DateTime.now().subtract(const Duration(days: 3)),
         updatedAt: DateTime.now().subtract(const Duration(days: 3)),
-        title: 'Business Bay Commercial Plot',
         description: 'Prime commercial land in Business Bay with excellent connectivity',
-        city: 'Dubai',
-        state: 'Dubai',
-        zipCode: '00000',
         developmentPermissions: ['Commercial'],
-        zoning: 'Commercial',
       ),
     ];
   }
@@ -106,7 +98,6 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
         areasInterested: ['Dubai Marina', 'Business Bay'],
         deliveredProjects: 15,
         underConstruction: 3,
-        landsInPipeline: 5,
         teamSize: 50,
         freeYearStart: DateTime.now(),
         createdAt: DateTime.now().subtract(const Duration(days: 7)),
@@ -125,7 +116,6 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
         areasInterested: ['Palm Jumeirah', 'Downtown Dubai'],
         deliveredProjects: 25,
         underConstruction: 5,
-        landsInPipeline: 8,
         teamSize: 100,
         freeYearStart: DateTime.now(),
         createdAt: DateTime.now().subtract(const Duration(days: 4)),
@@ -177,7 +167,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${listing.location} has been verified and activated!'),
+        content: Text('${listing.emirate}, ${listing.city} has been verified and activated!'),
         backgroundColor: AppTheme.successColor,
       ),
     );
@@ -190,7 +180,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${listing.location} has been rejected.'),
+        content: Text('${listing.emirate}, ${listing.city} has been rejected.'),
         backgroundColor: AppTheme.errorColor,
       ),
     );
@@ -478,7 +468,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
               children: [
                 Expanded(
                   child: Text(
-                    listing.title,
+                    '${listing.emirate}, ${listing.city}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

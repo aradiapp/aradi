@@ -5,6 +5,8 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
 import 'package:image_picker/image_picker.dart';
@@ -25,13 +27,12 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
   final _areaController = TextEditingController();
+  final _emirateController = TextEditingController();
   final _cityController = TextEditingController();
-  final _stateController = TextEditingController();
   final _landSizeController = TextEditingController();
   final _gfaController = TextEditingController();
   final _askingPriceController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _notesController = TextEditingController();
 
   LandListing? _originalListing;
   bool _isLoading = true;
@@ -39,6 +40,13 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   OwnershipType _selectedOwnershipType = OwnershipType.freehold;
   ListingType _selectedListingType = ListingType.both;
   List<PermissionType> _selectedPermissions = [];
+  List<String> _selectedPreferredDevelopers = [];
+
+  // Document URLs
+  String? _titleDeedUrl;
+  String? _dcrUrl;
+  File? _titleDeedDocument;
+  File? _dcrDocument;
 
   // Photo-related variables
   List<File> _selectedImages = [];
@@ -60,13 +68,12 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
     _titleController.dispose();
     _locationController.dispose();
     _areaController.dispose();
+    _emirateController.dispose();
     _cityController.dispose();
-    _stateController.dispose();
     _landSizeController.dispose();
     _gfaController.dispose();
     _askingPriceController.dispose();
     _descriptionController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
@@ -104,16 +111,15 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   }
 
   void _populateForm(LandListing listing) {
-    _titleController.text = listing.title;
-    _locationController.text = listing.location;
+    _titleController.text = '${listing.emirate}, ${listing.city}';
+    _locationController.text = '${listing.emirate}, ${listing.city}';
     _areaController.text = listing.area;
+    _emirateController.text = listing.emirate;
     _cityController.text = listing.city;
-    _stateController.text = listing.state;
     _landSizeController.text = listing.landSize.toString();
     _gfaController.text = listing.gfa.toString();
     _askingPriceController.text = listing.askingPrice.toString();
     _descriptionController.text = listing.description;
-    _notesController.text = listing.notes;
     _selectedOwnershipType = listing.ownershipType;
     _selectedListingType = listing.listingType;
     _selectedPermissions = listing.developmentPermissions.map((permission) {
@@ -135,6 +141,11 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
     _existingPhotoUrls = [...listing.photos, ...listing.photoUrls]
         .where((path) => path.startsWith('http'))
         .toList();
+    
+    // Load existing preferred developers and documents
+    _selectedPreferredDevelopers = List.from(listing.preferredDeveloperIds);
+    _titleDeedUrl = listing.titleDeedDocumentUrl;
+    _dcrUrl = listing.dcrDocumentUrl;
   }
 
   Future<void> _submitForm() async {
@@ -186,23 +197,40 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
       final allPhotoUrls = [..._existingPhotoUrls, ...newPhotoUrls];
       print('Total photos after update: ${allPhotoUrls.length}');
 
+      // Upload documents if provided
+      String? finalTitleDeedUrl = _titleDeedUrl;
+      if (_titleDeedDocument != null) {
+        try {
+          print('Uploading title deed document...');
+          finalTitleDeedUrl = await _photoUploadService.uploadDocument(
+            _titleDeedDocument!,
+            'listing_documents',
+            widget.listingId,
+          );
+          print('Title deed document uploaded: $finalTitleDeedUrl');
+        } catch (e) {
+          print('Error uploading title deed document: $e');
+          throw Exception('Failed to upload title deed document: $e');
+        }
+      }
+
       // Create updated listing
       final updatedListing = _originalListing!.copyWith(
-        title: _titleController.text.trim(),
-        location: _locationController.text.trim(),
         area: _areaController.text.trim(),
+        emirate: _emirateController.text.trim(),
         city: _cityController.text.trim(),
-        state: _stateController.text.trim(),
         landSize: double.tryParse(_landSizeController.text) ?? 0.0,
         gfa: double.tryParse(_gfaController.text) ?? 0.0,
         askingPrice: double.tryParse(_askingPriceController.text) ?? 0.0,
         description: _descriptionController.text.trim(),
-        notes: _notesController.text.trim(),
         ownershipType: _selectedOwnershipType,
         listingType: _selectedListingType,
         developmentPermissions: _selectedPermissions.map((p) => p.toString().split('.').last).toList(),
         photoUrls: allPhotoUrls,
         photos: [], // Keep photos empty, only use photoUrls for Firebase Storage URLs
+        preferredDeveloperIds: _selectedPreferredDevelopers,
+        titleDeedDocumentUrl: finalTitleDeedUrl,
+        dcrDocumentUrl: _dcrUrl,
         status: ListingStatus.pending_verification, // Reset to pending after update
         isActive: false, // Reset to inactive after update
         isVerified: false, // Reset verification status
@@ -285,28 +313,16 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _locationController,
-                  label: 'Location',
-                  hint: 'Enter property location',
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a location';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
                       child: _buildTextField(
-                        controller: _areaController,
-                        label: 'Area',
-                        hint: 'Enter area',
+                        controller: _emirateController,
+                        label: 'Emirate',
+                        hint: 'e.g., Dubai',
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter an area';
+                            return 'Please enter an emirate';
                           }
                           return null;
                         },
@@ -317,7 +333,7 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
                       child: _buildTextField(
                         controller: _cityController,
                         label: 'City',
-                        hint: 'Enter city',
+                        hint: 'e.g., Dubai',
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter a city';
@@ -330,12 +346,12 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                  controller: _stateController,
-                  label: 'State',
-                  hint: 'Enter state',
+                  controller: _areaController,
+                  label: 'Area',
+                  hint: 'Enter area',
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a state';
+                      return 'Please enter an area';
                     }
                     return null;
                   },
@@ -447,15 +463,34 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
                   hint: 'Enter property description',
                   maxLines: 3,
                 ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _notesController,
-                  label: 'Notes',
-                  hint: 'Enter any additional notes',
-                  maxLines: 3,
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Documents
+            _buildSectionCard(
+              'Documents',
+              [
+                _buildDocumentUpload(
+                  label: 'Title Deed / DCR',
+                  currentUrl: _originalListing?.titleDeedDocumentUrl,
+                  onChanged: (url) => _titleDeedUrl = url,
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+
+            // Preferred Developers
+            if (_selectedListingType == ListingType.jv || _selectedListingType == ListingType.both)
+              _buildSectionCard(
+                'Preferred Developers',
+                [
+                  _buildPreferredDevelopersSelector(),
+                ],
+              ),
+            if (_selectedListingType == ListingType.jv || _selectedListingType == ListingType.both)
+              const SizedBox(height: 24),
+
             const SizedBox(height: 32),
 
             // Submit Button
@@ -618,6 +653,10 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
               onTap: () {
                 setState(() {
                   _selectedListingType = type;
+                  // Clear preferred developers if changing to BUY
+                  if (type == ListingType.buy) {
+                    _selectedPreferredDevelopers.clear();
+                  }
                 });
               },
               child: Container(
@@ -758,6 +797,7 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
           SizedBox(
             height: 120,
             child: ListView.builder(
+              key: ValueKey(_existingPhotoUrls.length),
               scrollDirection: Axis.horizontal,
               itemCount: _existingPhotoUrls.length,
               itemBuilder: (context, index) {
@@ -907,6 +947,7 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
 
   void _removeExistingPhoto(int index) async {
     final photoUrl = _existingPhotoUrls[index];
+    print('Removing photo at index $index: $photoUrl');
     
     // Delete from Firebase Storage
     try {
@@ -919,6 +960,7 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
     // Remove from local state
     setState(() {
       _existingPhotoUrls.removeAt(index);
+      print('Photo removed from UI. Remaining photos: ${_existingPhotoUrls.length}');
     });
   }
 
@@ -945,4 +987,189 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
       }
     }
   }
+
+  Widget _buildDocumentUpload({
+    required String label,
+    String? currentUrl,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (currentUrl != null && currentUrl.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentUrl == 'local_file_selected' ? 'Document selected' : 'Document uploaded',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (currentUrl != 'local_file_selected')
+                        GestureDetector(
+                          onTap: () => _showFullscreenImage([currentUrl], 0),
+                          child: Text(
+                            'View Document',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              decoration: TextDecoration.underline,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    onChanged(null); // Remove the document
+                  },
+                  icon: Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Delete document',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  await _uploadDocument(label, onChanged);
+                },
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Replace'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _uploadDocument(String label, Function(String?) onChanged) async {
+    try {
+      // Pick an image
+      final result = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (result != null) {
+        final file = File(result.path);
+        
+        // Store the file locally (like photo upload)
+        if (label == 'Title Deed / DCR') {
+          _titleDeedDocument = file;
+        }
+        
+        // Update the UI to show document selected
+        onChanged('local_file_selected');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$label selected. Will be uploaded when you save.')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error picking document: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking document: $e')),
+        );
+      }
+    }
+  }
+
+
+  Widget _buildPreferredDevelopersSelector() {
+    return FutureBuilder<List<DeveloperProfile>>(
+      future: _getVerifiedDevelopers(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+        if (snapshot.hasError) {
+          return Text('Error loading developers: ${snapshot.error}');
+        }
+        final developers = snapshot.data ?? [];
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Select Preferred Developers',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: developers.map((developer) {
+                final isSelected = _selectedPreferredDevelopers.contains(developer.id);
+                return FilterChip(
+                  label: Text(developer.companyName),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (selected) {
+                        _selectedPreferredDevelopers.add(developer.id);
+                      } else {
+                        _selectedPreferredDevelopers.remove(developer.id);
+                      }
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<List<DeveloperProfile>> _getVerifiedDevelopers() async {
+    try {
+      final authService = AuthService();
+      return await authService.getVerifiedDevelopers();
+    } catch (e) {
+      print('Error fetching verified developers: $e');
+      return [];
+    }
+  }
 }
+

@@ -10,6 +10,7 @@ enum NotificationType {
   subscriptionExpiring,
   newMessage,
   dealCompleted,
+  kycRejected,
   systemAlert
 }
 

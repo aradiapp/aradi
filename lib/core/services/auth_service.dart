@@ -6,6 +6,7 @@ import 'package:aradi/core/models/buyer_profile.dart';
 import 'package:aradi/core/models/seller_profile.dart';
 import 'package:aradi/core/repo/firestore_user_repository.dart';
 import 'package:aradi/core/config/app_config.dart';
+import 'package:aradi/core/services/notification_service.dart';
 
 class AuthService {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
@@ -34,10 +35,19 @@ class AuthService {
   // Sign in with email and password
   Future<User?> signInWithEmailAndPassword(String email, String password) async {
     try {
+      print('=== AUTHENTICATION DEBUG ===');
+      print('Attempting to sign in with: $email');
+      print('Password length: ${password.length}');
+      
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      
+      print('Firebase Auth successful!');
+      print('Credential user UID: ${credential.user?.uid}');
+      print('Credential user email: ${credential.user?.email}');
+      print('============================');
       
       if (credential.user != null) {
         try {
@@ -136,6 +146,7 @@ class AuthService {
     required String password,
     required String name,
     required UserRole role,
+    String? profilePictureUrl,
   }) async {
     try {
       print('Attempting to create user with email: $email');
@@ -158,6 +169,7 @@ class AuthService {
           createdAt: DateTime.now(),
           isEmailVerified: false, // Set to false initially to avoid type casting issues
           isProfileComplete: false,
+          profilePictureUrl: profilePictureUrl,
         );
         
         print('Creating user in Firestore...');
@@ -184,6 +196,7 @@ class AuthService {
               createdAt: DateTime.now(),
               isEmailVerified: false,
               isProfileComplete: false,
+              profilePictureUrl: profilePictureUrl,
             );
             
             await _userRepository.createUser(user);
@@ -278,6 +291,11 @@ class AuthService {
     required List<String> areasInterested,
     String? logoUrl,
     String? portfolioPdfUrl,
+    String? catalogDocumentUrl,
+    int deliveredProjects = 0,
+    int underConstruction = 0,
+    int teamSize = 0,
+    int totalValue = 0,
   }) async {
     try {
       print('=== CREATING DEVELOPER PROFILE DEBUG ===');
@@ -307,6 +325,11 @@ class AuthService {
         updatedAt: DateTime.now(),
         logoUrl: logoUrl,
         portfolioPdfUrl: portfolioPdfUrl,
+        catalogDocumentUrl: catalogDocumentUrl,
+        deliveredProjects: deliveredProjects,
+        underConstruction: underConstruction,
+        teamSize: teamSize,
+        totalValue: totalValue,
       );
       
       print('Developer profile object created successfully');
@@ -458,7 +481,7 @@ class AuthService {
     }
   }
 
-  Future<void> rejectKycUser(String userId) async {
+  Future<void> rejectKycUser(String userId, {String? rejectionReason}) async {
     try {
       // Get the target user by ID
       final targetUser = await _userRepository.getUserById(userId);
@@ -469,8 +492,21 @@ class AuthService {
         isProfileComplete: false,
         isKycVerified: false,
         wasKycRejected: true,
+        kycRejectionReason: rejectionReason,
       );
       await _userRepository.updateUser(updatedUser);
+      
+      // Send rejection notification
+      try {
+        final notificationService = NotificationService();
+        await notificationService.notifyKycRejection(
+          recipientId: userId,
+          rejectionReason: rejectionReason,
+        );
+      } catch (e) {
+        print('Error sending rejection notification: $e');
+        // Don't fail the rejection if notification fails
+      }
       
       print('User $userId rejected successfully');
     } catch (e) {
@@ -528,4 +564,37 @@ class AuthService {
         return 'Authentication failed: ${e.message}';
     }
   }
+
+  Future<List<DeveloperProfile>> getVerifiedDevelopers() async {
+    try {
+      // Get all developer profiles
+      final developerProfilesSnapshot = await FirebaseFirestore.instance
+          .collection('developerProfiles')
+          .get();
+
+      final developerProfiles = developerProfilesSnapshot.docs
+          .map((doc) => DeveloperProfile.fromJson(doc.data()))
+          .toList();
+
+      // Get all users with developer role and isKycVerified = true
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'developer')
+          .where('isKycVerified', isEqualTo: true)
+          .get();
+
+      final verifiedUserIds = usersSnapshot.docs.map((doc) => doc.id).toList();
+
+      // Filter developer profiles to only include verified ones
+      final verifiedDevelopers = developerProfiles
+          .where((profile) => verifiedUserIds.contains(profile.userId))
+          .toList();
+
+      return verifiedDevelopers;
+    } catch (e) {
+      print('Error fetching verified developers: $e');
+      return [];
+    }
+  }
+
 }

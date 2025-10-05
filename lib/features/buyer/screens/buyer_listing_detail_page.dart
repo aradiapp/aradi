@@ -306,7 +306,7 @@ class _BuyerListingDetailPageState extends ConsumerState<BuyerListingDetailPage>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        listing.title,
+                        '${listing.emirate}, ${listing.city}',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textPrimary,
@@ -314,7 +314,7 @@ class _BuyerListingDetailPageState extends ConsumerState<BuyerListingDetailPage>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        listing.location,
+                        '${listing.emirate}, ${listing.city}',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -493,12 +493,6 @@ class _BuyerListingDetailPageState extends ConsumerState<BuyerListingDetailPage>
               label: 'Listed On',
               value: _formatDate(listing.createdAt),
             ),
-            if (listing.notes.isNotEmpty)
-              _buildDetailRow(
-                icon: Icons.note,
-                label: 'Additional Notes',
-                value: listing.notes,
-              ),
           ],
         ),
       ),
@@ -605,7 +599,7 @@ class _BuyerListingDetailPageState extends ConsumerState<BuyerListingDetailPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Property: ${listing.title}',
+                'Property: ${listing.emirate}, ${listing.city}',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),

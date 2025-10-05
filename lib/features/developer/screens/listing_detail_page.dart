@@ -371,7 +371,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              _listing!.title,
+              '${_listing!.emirate}, ${_listing!.city}',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: AppTheme.textPrimary,
@@ -420,10 +420,8 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Address', _listing!.location),
+            _buildInfoRow('Address', '${_listing!.emirate}, ${_listing!.city}'),
             _buildInfoRow('City', _listing!.city),
-            _buildInfoRow('State', _listing!.state),
-            _buildInfoRow('ZIP Code', _listing!.zipCode),
           ],
         ),
       ),
@@ -463,7 +461,6 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             _buildInfoRow('GFA', '${_listing!.gfa} sq ft'),
             _buildInfoRow('Ownership Type', _listing!.ownershipType.toString().split('.').last),
             _buildInfoRow('Development Permissions', _listing!.developmentPermissions.join(', ')),
-            _buildInfoRow('Zoning', _listing!.zoning),
           ],
         ),
       ),
@@ -843,7 +840,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         listingId: widget.listingId,
         developerId: currentUser.id,
         developerName: currentUser.name,
-        listingTitle: _listing!.location,
+        listingTitle: '${_listing!.emirate}, ${_listing!.city}',
         sellerId: _listing!.sellerId,
         sellerName: 'Seller', // TODO: Get actual seller name
       );
@@ -939,7 +936,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         listingId: widget.listingId,
         developerId: currentUser.id,
         developerName: currentUser.name,
-        listingTitle: _listing!.location,
+        listingTitle: '${_listing!.emirate}, ${_listing!.city}',
         sellerId: _listing!.sellerId,
         sellerName: 'Seller', // TODO: Get actual seller name
       );

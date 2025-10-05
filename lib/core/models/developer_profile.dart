@@ -12,12 +12,13 @@ class DeveloperProfile {
   final String signatoryPassport; // Required
   final String? logoUrl;
   final String? portfolioPdfUrl;
+  final String? catalogDocumentUrl;
   final BusinessModel businessModel;
   final List<String> areasInterested;
   final int deliveredProjects;
   final int underConstruction;
-  final int landsInPipeline;
   final int teamSize;
+  final int totalValue; // Total value in AED
   final DateTime freeYearStart; // Free first year from profile creation
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -33,12 +34,13 @@ class DeveloperProfile {
     required this.signatoryPassport,
     this.logoUrl,
     this.portfolioPdfUrl,
+    this.catalogDocumentUrl,
     required this.businessModel,
     required this.areasInterested,
     this.deliveredProjects = 0,
     this.underConstruction = 0,
-    this.landsInPipeline = 0,
     this.teamSize = 0,
+    this.totalValue = 0,
     required this.freeYearStart,
     required this.createdAt,
     required this.updatedAt,
@@ -56,6 +58,7 @@ class DeveloperProfile {
       signatoryPassport: json['signatoryPassport'] as String,
       logoUrl: json['logoUrl'] as String?,
       portfolioPdfUrl: json['portfolioPdfUrl'] as String?,
+      catalogDocumentUrl: json['catalogDocumentUrl'] as String?,
       businessModel: BusinessModel.values.firstWhere(
         (e) => e.toString().split('.').last == json['businessModel'],
         orElse: () => BusinessModel.business,
@@ -65,8 +68,8 @@ class DeveloperProfile {
           .toList(),
       deliveredProjects: json['deliveredProjects'] as int? ?? 0,
       underConstruction: json['underConstruction'] as int? ?? 0,
-      landsInPipeline: json['landsInPipeline'] as int? ?? 0,
       teamSize: json['teamSize'] as int? ?? 0,
+      totalValue: json['totalValue'] as int? ?? 0,
       freeYearStart: (json['freeYearStart'] as Timestamp).toDate(),
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
@@ -85,12 +88,13 @@ class DeveloperProfile {
       'signatoryPassport': signatoryPassport,
       'logoUrl': logoUrl,
       'portfolioPdfUrl': portfolioPdfUrl,
+      'catalogDocumentUrl': catalogDocumentUrl,
       'businessModel': businessModel.toString().split('.').last,
       'areasInterested': areasInterested,
       'deliveredProjects': deliveredProjects,
       'underConstruction': underConstruction,
-      'landsInPipeline': landsInPipeline,
       'teamSize': teamSize,
+      'totalValue': totalValue,
       'freeYearStart': Timestamp.fromDate(freeYearStart),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -108,12 +112,13 @@ class DeveloperProfile {
     String? signatoryPassport,
     String? logoUrl,
     String? portfolioPdfUrl,
+    String? catalogDocumentUrl,
     BusinessModel? businessModel,
     List<String>? areasInterested,
     int? deliveredProjects,
     int? underConstruction,
-    int? landsInPipeline,
     int? teamSize,
+    int? totalValue,
     DateTime? freeYearStart,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -129,12 +134,13 @@ class DeveloperProfile {
       signatoryPassport: signatoryPassport ?? this.signatoryPassport,
       logoUrl: logoUrl ?? this.logoUrl,
       portfolioPdfUrl: portfolioPdfUrl ?? this.portfolioPdfUrl,
+      catalogDocumentUrl: catalogDocumentUrl ?? this.catalogDocumentUrl,
       businessModel: businessModel ?? this.businessModel,
       areasInterested: areasInterested ?? this.areasInterested,
       deliveredProjects: deliveredProjects ?? this.deliveredProjects,
       underConstruction: underConstruction ?? this.underConstruction,
-      landsInPipeline: landsInPipeline ?? this.landsInPipeline,
       teamSize: teamSize ?? this.teamSize,
+      totalValue: totalValue ?? this.totalValue,
       freeYearStart: freeYearStart ?? this.freeYearStart,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -149,7 +155,7 @@ class DeveloperProfile {
     return now.isBefore(freeYearEnd);
   }
 
-  int get totalProjects => deliveredProjects + underConstruction + landsInPipeline;
+  int get totalProjects => deliveredProjects + underConstruction;
 
   @override
   bool operator ==(Object other) {

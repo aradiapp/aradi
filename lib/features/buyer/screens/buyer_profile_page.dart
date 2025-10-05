@@ -39,7 +39,7 @@ class _BuyerProfilePageState extends ConsumerState<BuyerProfilePage> {
       // Filter out JV-only listings for buyers
       _myListings = allListings.where((listing) => 
         listing.isActive && 
-        listing.listingType != ListingType.jvOnly
+        listing.listingType != ListingType.jv
       ).toList();
     } catch (e) {
       print('Error loading buyer data: $e');

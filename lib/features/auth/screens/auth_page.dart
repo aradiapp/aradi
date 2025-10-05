@@ -5,6 +5,58 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/models/user.dart';
 import 'package:aradi/app/providers/data_providers.dart';
+import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:aradi/features/auth/widgets/kyc_rejection_dialog.dart';
+
+
+// Dubai areas list for developers
+const List<String> _dubaiAreas = [
+  'Abu Hail',
+  'Al Barsha',
+  'Al Furjan',
+  'Al Habtoor City',
+  'Al Jaddaf',
+  'Al Quoz',
+  'Al Safa',
+  'Al Sufouh',
+  'Arabian Ranches',
+  'Arjan (Dubailand)',
+  'Barsha Heights',
+  'Bluewaters Island',
+  'Business Bay',
+  'City Walk',
+  'Culture Village',
+  'Deira',
+  'DIFC (Dubai International Financial Centre)',
+  'Dubai Creek Harbour',
+  'Dubai Hills Estate',
+  'Dubai International City',
+  'Dubai Marina',
+  'Dubai Media City',
+  'Dubai Silicon Oasis',
+  'Downtown Dubai',
+  'Emaar Beachfront',
+  'Emirates Hills',
+  'JBR (Jumeirah Beach Residence)',
+  'JLT (Jumeirah Lake Towers)',
+  'JVC (Jumeirah Village Circle)',
+  'JVT (Jumeirah Village Triangle)',
+  'Madinat Jumeirah Living (MJL)',
+  'Meadows',
+  'Mina Rashid',
+  'Motor City',
+  'Mudon',
+  'Nad Al Sheba',
+  'Palm Jumeirah',
+  'Port de La Mer',
+  'Tilal Al Ghaf',
+  'The Springs',
+  'The Views',
+  'The Villa',
+  'Victory Heights',
+];
 
 class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
@@ -29,6 +81,15 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   
   // Role selection
   UserRole? _selectedRole;
+  
+  // Profile picture
+  File? _profilePicture;
+  final ImagePicker _imagePicker = ImagePicker();
+  
+  
+  // Terms and agreements
+  bool _acceptTerms = false;
+  
   
   bool _isSignInLoading = false;
   bool _isSignUpLoading = false;
@@ -453,16 +514,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 ),
               ),
               DropdownMenuItem(
-                value: UserRole.buyer,
-                child: Row(
-                  children: [
-                    const Icon(Icons.shopping_cart, color: Colors.green),
-                    const SizedBox(width: 8),
-                    const Text('Buyer'),
-                  ],
-                ),
-              ),
-              DropdownMenuItem(
                 value: UserRole.seller,
                 child: Row(
                   children: [
@@ -485,6 +536,15 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
+          
+          // Profile Picture Upload
+          _buildProfilePictureSection(),
+          const SizedBox(height: 16),
+          
+          
+          // Terms and Agreements
+          _buildTermsAndAgreementsSection(),
           const SizedBox(height: 24),
           Container(
             width: double.infinity,
@@ -631,6 +691,17 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
   Future<void> _handleSignUp() async {
     if (!_signUpFormKey.currentState!.validate()) return;
+    
+    // Check terms acceptance
+    if (!_acceptTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the terms and agreements'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isSignUpLoading = true;
@@ -638,11 +709,26 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
     try {
       final authService = ref.read(authServiceProvider);
+      
+      // Upload profile picture if selected
+      String? profilePictureUrl;
+      if (_profilePicture != null) {
+        try {
+          // Upload profile picture to Firebase Storage
+          final photoUploadService = PhotoUploadService();
+          profilePictureUrl = await photoUploadService.uploadProfilePicture(_profilePicture!);
+        } catch (e) {
+          print('Error uploading profile picture: $e');
+          // Continue with signup even if profile picture upload fails
+        }
+      }
+      
       final user = await authService.signUpWithEmailAndPassword(
         email: _signUpEmailController.text.trim(),
         password: _signUpPasswordController.text,
         name: _signUpNameController.text.trim(),
         role: _selectedRole!, // Use selected role
+        profilePictureUrl: profilePictureUrl,
       );
 
       if (user != null) {
@@ -685,71 +771,191 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     }
   }
 
+  // Helper methods for image picking
+  Future<void> _pickProfilePicture() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
+      if (image != null) {
+        setState(() {
+          _profilePicture = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+
+
+  // New section methods
+  Widget _buildProfilePictureSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Profile Picture (Optional)',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _pickProfilePicture,
+                icon: const Icon(Icons.add_a_photo),
+                label: const Text('Add Photo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            if (_profilePicture != null) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _profilePicture = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Remove'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[600],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (_profilePicture != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            height: 100,
+            width: 100,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.primaryColor),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.file(
+                _profilePicture!,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+
+
+
+  Widget _buildTermsAndAgreementsSection() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Checkbox(
+          value: _acceptTerms,
+          onChanged: (value) {
+            setState(() {
+              _acceptTerms = value ?? false;
+            });
+          },
+          activeColor: AppTheme.primaryColor,
+        ),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textPrimary,
+              ),
+              children: [
+                const TextSpan(text: 'I agree to the '),
+                WidgetSpan(
+                  child: GestureDetector(
+                    onTap: () {
+                      // TODO: Open terms and agreements page
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Terms and Agreements page will open here'),
+                          backgroundColor: AppTheme.primaryColor,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Terms and Agreements',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+                const TextSpan(text: ' and '),
+                WidgetSpan(
+                  child: GestureDetector(
+                    onTap: () {
+                      // TODO: Open privacy policy page
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Privacy Policy page will open here'),
+                          backgroundColor: AppTheme.primaryColor,
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Privacy Policy',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+                const TextSpan(text: '.'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   void _showKycRejectionDialog(User user) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.warning, color: AppTheme.errorColor),
-            const SizedBox(width: 8),
-            const Text('KYC Rejected'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your KYC verification has been rejected by the admin.',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Please review your information and documents, then try again.',
-              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.errorColor.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppTheme.errorColor, size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Make sure all documents are clear and information is accurate.',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // Navigate to KYC verification for the user's role
-              context.go('/kyc/${user.role.toString().split('.').last}');
-            },
-            style: TextButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text('Try Again'),
-          ),
-        ],
+      builder: (context) => KycRejectionReasonDialog(
+        rejectionReason: user.kycRejectionReason,
       ),
-    );
+    ).then((_) {
+      // Navigate to KYC verification for the user's role after dialog is closed
+      context.go('/kyc/${user.role.toString().split('.').last}');
+    });
   }
 
 }

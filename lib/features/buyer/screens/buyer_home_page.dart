@@ -39,7 +39,7 @@ class _BuyerHomePageState extends ConsumerState<BuyerHomePage> {
       // Filter out JV-only listings for buyers
       _listings = listings.where((listing) => 
         listing.isActive && 
-        listing.listingType != ListingType.jvOnly
+        listing.listingType != ListingType.jv
       ).toList();
       
       // Apply initial filter
@@ -71,12 +71,12 @@ class _BuyerHomePageState extends ConsumerState<BuyerHomePage> {
         _filteredListings = _listings;
       } else if (filter == 'Dubai Marina') {
         _filteredListings = _listings.where((listing) => 
-          listing.location.toLowerCase().contains('dubai marina') ||
+          '${listing.emirate}, ${listing.city}'.toLowerCase().contains('dubai marina') ||
           listing.area.toLowerCase().contains('dubai marina')
         ).toList();
       } else if (filter == 'Palm Jumeirah') {
         _filteredListings = _listings.where((listing) => 
-          listing.location.toLowerCase().contains('palm jumeirah') ||
+          '${listing.emirate}, ${listing.city}'.toLowerCase().contains('palm jumeirah') ||
           listing.area.toLowerCase().contains('palm jumeirah')
         ).toList();
       } else if (filter == 'Residential') {
@@ -380,7 +380,7 @@ class _BuyerHomePageState extends ConsumerState<BuyerHomePage> {
                   children: [
                     // Header
                     Text(
-                      listing.location,
+                      '${listing.emirate}, ${listing.city}',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textPrimary,
@@ -627,7 +627,7 @@ class _LandListingCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          listing.location,
+                          '${listing.emirate}, ${listing.city}',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,

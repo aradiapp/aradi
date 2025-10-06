@@ -4,6 +4,8 @@ import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/models/deal.dart';
 import 'package:aradi/core/models/subscription.dart';
 import 'package:aradi/app/theme/app_theme.dart';
+import 'package:aradi/features/admin/widgets/listing_rejection_dialog.dart';
+import 'package:aradi/core/services/notification_service.dart';
 
 class ContractQueuePage extends StatefulWidget {
   const ContractQueuePage({super.key});
@@ -174,14 +176,53 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
   }
 
   void _rejectListing(LandListing listing) async {
-    setState(() {
-      _pendingListings.remove(listing);
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${listing.emirate}, ${listing.city} has been rejected.'),
-        backgroundColor: AppTheme.errorColor,
+    showDialog(
+      context: context,
+      builder: (context) => ListingRejectionDialog(
+        listingTitle: '${listing.emirate}, ${listing.city}',
+        sellerName: listing.sellerName,
+        onReject: (rejectionReason) async {
+          try {
+            // In a real app, this would call the LandListingService
+            // await landListingService.rejectListing(listing.id, rejectionReason: rejectionReason);
+            
+            // Send rejection notification
+            try {
+              final notificationService = NotificationService();
+              await notificationService.notifyListingRejection(
+                recipientId: listing.sellerId,
+                listingTitle: '${listing.emirate}, ${listing.city}',
+                rejectionReason: rejectionReason,
+              );
+            } catch (e) {
+              print('Error sending rejection notification: $e');
+              // Don't fail the rejection if notification fails
+            }
+            
+            if (mounted) {
+              setState(() {
+                _pendingListings.remove(listing);
+              });
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Listing rejected'),
+                  backgroundColor: AppTheme.warningColor,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error rejecting listing: $e'),
+                  backgroundColor: AppTheme.errorColor,
+                ),
+              );
+            }
+            rethrow;
+          }
+        },
       ),
     );
   }
@@ -509,6 +550,18 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
                 fontSize: 14,
               ),
             ),
+            if (listing.description?.isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                listing.description!,
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 14,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [

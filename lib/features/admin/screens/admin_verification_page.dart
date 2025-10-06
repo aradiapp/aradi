@@ -7,6 +7,8 @@ import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
+import 'package:aradi/features/admin/widgets/listing_rejection_dialog.dart';
+import 'package:aradi/core/services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
 
@@ -87,32 +89,55 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
   }
 
   Future<void> _rejectListing(LandListing listing) async {
-    try {
-      final landListingService = LandListingService();
-      await landListingService.verifyListing(listing.id, false);
-
-      if (mounted) {
-        setState(() {
-          _pendingListings.remove(listing);
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${listing.emirate}, ${listing.city} has been rejected!'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error rejecting listing: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
-    }
+    showDialog(
+      context: context,
+      builder: (context) => ListingRejectionDialog(
+        listingTitle: '${listing.emirate}, ${listing.city}',
+        sellerName: listing.sellerName,
+        onReject: (rejectionReason) async {
+          try {
+            final landListingService = LandListingService();
+            await landListingService.rejectListing(listing.id, rejectionReason: rejectionReason);
+            
+            // Send rejection notification
+            try {
+              final notificationService = NotificationService();
+              await notificationService.notifyListingRejection(
+                recipientId: listing.sellerId,
+                listingTitle: '${listing.emirate}, ${listing.city}',
+                rejectionReason: rejectionReason,
+              );
+            } catch (e) {
+              print('Error sending rejection notification: $e');
+              // Don't fail the rejection if notification fails
+            }
+            
+            if (mounted) {
+              setState(() {
+                _pendingListings.remove(listing);
+              });
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Listing rejected'),
+                  backgroundColor: AppTheme.warningColor,
+                ),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error rejecting listing: $e'),
+                  backgroundColor: AppTheme.errorColor,
+                ),
+              );
+            }
+            rethrow;
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -296,6 +321,8 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
           _buildDetailRow('Ownership Type', listing.ownershipType.toString().split('.').last.toUpperCase()),
           
           // New fields from current form
+          if (listing.description?.isNotEmpty == true) 
+            _buildDetailRow('Description', listing.description!),
           if (listing.buildingSpecs?.isNotEmpty == true) 
             _buildDetailRow('Building Specifications', listing.buildingSpecs!),
           if (listing.gFloorSpecs?.isNotEmpty == true) 

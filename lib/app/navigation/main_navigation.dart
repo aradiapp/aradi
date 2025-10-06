@@ -35,8 +35,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Force refresh user role when dependencies change
-    refreshUserRole();
+    // Only refresh user role if we don't have one yet
+    if (_currentUserRole == null) {
+      refreshUserRole();
+    }
   }
 
   Future<void> _loadCurrentUserRole() async {

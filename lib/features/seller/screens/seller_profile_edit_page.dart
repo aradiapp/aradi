@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/seller_profile.dart';
 import 'package:aradi/app/providers/data_providers.dart';
+import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class SellerProfileEditPage extends ConsumerStatefulWidget {
   const SellerProfileEditPage({super.key});
@@ -16,6 +19,13 @@ class SellerProfileEditPage extends ConsumerStatefulWidget {
 class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
   final _formKey = GlobalKey<FormBuilderState>();
   bool _isLoading = false;
+  
+  // Image upload variables
+  File? _passportImage;
+  File? _tradeLicenseImage;
+  String? _passportImageUrl;
+  String? _tradeLicenseImageUrl;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +77,10 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
   }
 
   Widget _buildEditForm(SellerProfile profile) {
+    // Initialize image URLs
+    _passportImageUrl = profile.passportOrEmiratesId;
+    _tradeLicenseImageUrl = profile.companyTradeLicense;
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: FormBuilder(
@@ -75,8 +89,6 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
           'name': profile.name,
           'phone': profile.phone,
           'email': profile.email,
-          'passportOrEmiratesId': profile.passportOrEmiratesId,
-          'companyTradeLicense': profile.companyTradeLicense ?? '',
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,30 +142,30 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
             const SizedBox(height: 24),
             _buildSectionHeader('Identity Documents'),
             const SizedBox(height: 16),
-            FormBuilderTextField(
-              name: 'passportOrEmiratesId',
-              decoration: const InputDecoration(
-                labelText: 'Passport/Emirates ID Number',
-                border: OutlineInputBorder(),
-                helperText: 'Enter your passport or Emirates ID number',
-              ),
-              validator: (value) {
-                if (value == null || value.toString().isEmpty) {
-                  return 'This field is required';
-                }
-                return null;
+            _buildImageUploadField(
+              label: 'Passport/Emirates ID',
+              currentImageUrl: _passportImageUrl,
+              selectedImage: _passportImage,
+              onImageSelected: (File? image) {
+                setState(() {
+                  _passportImage = image;
+                });
               },
+              isRequired: true,
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Company Information (Optional)'),
             const SizedBox(height: 16),
-            FormBuilderTextField(
-              name: 'companyTradeLicense',
-              decoration: const InputDecoration(
-                labelText: 'Company Trade License',
-                border: OutlineInputBorder(),
-                helperText: 'Enter your company trade license if applicable',
-              ),
+            _buildImageUploadField(
+              label: 'Trade License (Optional)',
+              currentImageUrl: _tradeLicenseImageUrl,
+              selectedImage: _tradeLicenseImage,
+              onImageSelected: (File? image) {
+                setState(() {
+                  _tradeLicenseImage = image;
+                });
+              },
+              isRequired: false,
             ),
             const SizedBox(height: 24),
             _buildListingStatsCard(profile),
@@ -285,15 +297,35 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
           throw Exception('Profile type mismatch. Expected SellerProfile, got ${currentProfile.runtimeType}. User role: ${currentUser.role}');
         }
 
+        // Upload images if selected
+        String? passportUrl = _passportImageUrl;
+        String? tradeLicenseUrl = _tradeLicenseImageUrl;
+        
+        if (_passportImage != null) {
+          final photoUploadService = PhotoUploadService();
+          passportUrl = await photoUploadService.uploadDocument(
+            _passportImage!,
+            'seller_documents/${currentUser.id}',
+            'passport_${DateTime.now().millisecondsSinceEpoch}',
+          );
+        }
+        
+        if (_tradeLicenseImage != null) {
+          final photoUploadService = PhotoUploadService();
+          tradeLicenseUrl = await photoUploadService.uploadDocument(
+            _tradeLicenseImage!,
+            'seller_documents/${currentUser.id}',
+            'trade_license_${DateTime.now().millisecondsSinceEpoch}',
+          );
+        }
+
         // Update profile
         final updatedProfile = currentProfile.copyWith(
           name: formData['name'],
           phone: formData['phone'],
           email: formData['email'],
-          passportOrEmiratesId: formData['passportOrEmiratesId'],
-          companyTradeLicense: formData['companyTradeLicense']?.toString().isNotEmpty == true 
-              ? formData['companyTradeLicense'].toString() 
-              : null,
+          passportOrEmiratesId: passportUrl ?? '',
+          companyTradeLicense: tradeLicenseUrl,
           updatedAt: DateTime.now(),
         );
 
@@ -329,6 +361,166 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
             _isLoading = false;
           });
         }
+      }
+    }
+  }
+
+  Widget _buildImageUploadField({
+    required String label,
+    String? currentImageUrl,
+    File? selectedImage,
+    required Function(File?) onImageSelected,
+    required bool isRequired,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          height: 200,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppTheme.borderColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: selectedImage != null
+              ? Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        selectedImage,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => onImageSelected(null),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : currentImageUrl != null && currentImageUrl.isNotEmpty
+                  ? Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            currentImageUrl,
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: AppTheme.backgroundLight,
+                              child: const Icon(Icons.broken_image, size: 50),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: () {
+                                setState(() {
+                                  _passportImageUrl = null;
+                                  _tradeLicenseImageUrl = null;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.cloud_upload,
+                          size: 50,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap to upload image',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _pickImage(onImageSelected),
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Upload Image'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            if (isRequired) ...[
+              const SizedBox(width: 8),
+              Text(
+                '* Required',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.errorColor,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickImage(Function(File?) onImageSelected) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      
+      if (image != null) {
+        onImageSelected(File(image.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
       }
     }
   }

@@ -11,6 +11,7 @@ import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 class ListingDetailPage extends ConsumerStatefulWidget {
@@ -84,7 +85,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             backgroundColor: AppTheme.errorColor,
           ),
         );
-        context.go('/dev');
+        context.go('/dev/browse');
       }
     }
   }
@@ -93,6 +94,22 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          onPressed: () => context.go('/dev/browse'),
+        ),
+        title: Text(
+          'Listing Details',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _listing == null
@@ -132,7 +149,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ),
               const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => context.pop(),
+              onPressed: () => context.go('/dev/browse'),
               child: const Text('Go Back'),
             ),
           ],
@@ -155,9 +172,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           const SizedBox(height: 20),
           _buildPropertyDetails(),
           const SizedBox(height: 20),
-          _buildPricingInfo(),
+          _buildTechnicalSpecs(),
           const SizedBox(height: 20),
-          _buildSellerInfo(),
+          _buildPricingInfo(),
           const SizedBox(height: 20),
           _buildDocuments(),
           const SizedBox(height: 100), // Space for bottom buttons
@@ -332,6 +349,12 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   }
 
   Widget _buildBasicInfo() {
+    // Check if current developer is preferred for this listing
+    final authService = ref.read(authServiceProvider);
+    final currentUser = authService.currentUser;
+    final isPreferredDeveloper = currentUser != null && 
+        _listing!.preferredDeveloperIds.contains(currentUser.uid);
+    
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(
@@ -359,6 +382,39 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                     ),
                   ),
                 ),
+                if (isPreferredDeveloper) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _showPreferredDeveloperInfo(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.amber, width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.workspace_premium,
+                            color: Colors.amber[700],
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Preferred Developer',
+                            style: TextStyle(
+                              color: Colors.amber[700],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 Text(
                   'AED ${_formatPrice(_listing!.askingPrice)}',
@@ -420,8 +476,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Address', '${_listing!.emirate}, ${_listing!.city}'),
+            _buildInfoRow('Emirate', _listing!.emirate),
             _buildInfoRow('City', _listing!.city),
+            _buildInfoRow('Area', _listing!.area),
           ],
         ),
       ),
@@ -457,9 +514,10 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Land Size', '${_listing!.landSize} acres'),
-            _buildInfoRow('GFA', '${_listing!.gfa} sq ft'),
-            _buildInfoRow('Ownership Type', _listing!.ownershipType.toString().split('.').last),
+            _buildInfoRow('Land Size', '${_listing!.landSize} sqm'),
+            _buildInfoRow('GFA', '${_listing!.gfa} sqm'),
+            _buildInfoRow('Ownership Type', _getOwnershipTypeText(_listing!.ownershipType)),
+            _buildInfoRow('Listing Type', _getListingTypeText(_listing!.listingType)),
             _buildInfoRow('Development Permissions', _listing!.developmentPermissions.join(', ')),
           ],
         ),
@@ -498,14 +556,13 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             const SizedBox(height: 16),
             _buildInfoRow('Asking Price', 'AED ${_formatPrice(_listing!.askingPrice)}'),
             _buildInfoRow('Price per Acre', 'AED ${_formatPrice(_listing!.askingPrice / _listing!.landSize)}'),
-            _buildInfoRow('Price per Sq Ft', 'AED ${(_listing!.askingPrice / _listing!.gfa).toStringAsFixed(2)}'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSellerInfo() {
+  Widget _buildTechnicalSpecs() {
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(
@@ -519,13 +576,13 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
             Row(
               children: [
                 Icon(
-                  Icons.person,
+                  Icons.engineering,
                   color: AppTheme.primaryColor,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Seller Information',
+                  'Technical Specifications',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
@@ -534,7 +591,12 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildInfoRow('Seller ID', _listing!.sellerId),
+            if (_listing!.buildingSpecs?.isNotEmpty == true)
+              _buildInfoRow('Building Specs', _listing!.buildingSpecs!),
+            if (_listing!.gFloorSpecs?.isNotEmpty == true)
+              _buildInfoRow('Ground Floor Specs', _listing!.gFloorSpecs!),
+            if (_listing!.technicalSpecs?.isNotEmpty == true)
+              _buildInfoRow('Technical Specs', _listing!.technicalSpecs!),
             _buildInfoRow('Listed Date', _formatDate(_listing!.createdAt)),
             _buildInfoRow('Last Updated', _formatDate(_listing!.updatedAt)),
           ],
@@ -572,28 +634,88 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildDocumentItem('Property Deed', Icons.description),
-            _buildDocumentItem('Survey Report', Icons.map),
-            _buildDocumentItem('Zoning Certificate', Icons.verified),
-            _buildDocumentItem('Environmental Report', Icons.eco),
+            if (_listing!.titleDeedDocumentUrl?.isNotEmpty == true)
+              _buildDocumentItem('Title Deed', Icons.description, _listing!.titleDeedDocumentUrl!),
+            if (_listing!.dcrDocumentUrl?.isNotEmpty == true)
+              _buildDocumentItem('DCR Document', Icons.verified, _listing!.dcrDocumentUrl!),
+            if ((_listing!.titleDeedDocumentUrl?.isEmpty ?? true) && 
+                (_listing!.dcrDocumentUrl?.isEmpty ?? true))
+              Text(
+                'No documents available',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDocumentItem(String title, IconData icon) {
+  Widget _buildDocumentItem(String title, IconData icon, String url) {
     return ListTile(
       leading: Icon(icon, color: AppTheme.primaryColor),
       title: Text(title),
-      trailing: const Icon(Icons.download),
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Downloading $title...'),
-            backgroundColor: AppTheme.primaryColor,
-          ),
-        );
+      trailing: const Icon(Icons.open_in_new),
+      onTap: () async {
+        try {
+          final Uri uri = Uri.parse(url);
+          
+          // Try different launch modes
+          bool launched = false;
+          
+          // First try with external application
+          if (await canLaunchUrl(uri)) {
+            launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+          
+          // If that fails, try with platformDefault
+          if (!launched) {
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(uri, mode: LaunchMode.platformDefault);
+            }
+          }
+          
+          // If that fails, try with inAppWebView
+          if (!launched) {
+            if (await canLaunchUrl(uri)) {
+              launched = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+            }
+          }
+          
+          if (!launched) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Cannot open $title. Please try opening the link manually.'),
+                  backgroundColor: AppTheme.errorColor,
+                  action: SnackBarAction(
+                    label: 'Copy Link',
+                    onPressed: () {
+                      // TODO: Implement copy to clipboard
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Link copied to clipboard'),
+                          backgroundColor: AppTheme.successColor,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error opening $title: $e'),
+                backgroundColor: AppTheme.errorColor,
+              ),
+            );
+          }
+        }
       },
     );
   }
@@ -842,7 +964,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         developerName: currentUser.name,
         listingTitle: '${_listing!.emirate}, ${_listing!.city}',
         sellerId: _listing!.sellerId,
-        sellerName: 'Seller', // TODO: Get actual seller name
+        sellerName: 'Property Owner', // Don't reveal seller name to developers
       );
 
       if (mounted) {
@@ -938,7 +1060,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         developerName: currentUser.name,
         listingTitle: '${_listing!.emirate}, ${_listing!.city}',
         sellerId: _listing!.sellerId,
-        sellerName: 'Seller', // TODO: Get actual seller name
+        sellerName: 'Property Owner', // Don't reveal seller name to developers
       );
 
       if (mounted) {
@@ -1023,6 +1145,89 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           imageUrls: imageUrls,
           initialIndex: _currentPhotoIndex,
         ),
+      ),
+    );
+  }
+
+  String _getOwnershipTypeText(OwnershipType ownershipType) {
+    switch (ownershipType) {
+      case OwnershipType.freehold:
+        return 'Freehold';
+      case OwnershipType.leasehold:
+        return 'Leasehold';
+      case OwnershipType.gcc:
+        return 'GCC National';
+    }
+  }
+
+  String _getListingTypeText(ListingType listingType) {
+    switch (listingType) {
+      case ListingType.buy:
+        return 'Buy';
+      case ListingType.jv:
+        return 'Joint Venture';
+      case ListingType.both:
+        return 'Buy or Joint Venture';
+    }
+  }
+
+  void _showPreferredDeveloperInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.workspace_premium,
+              color: Colors.amber[700],
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Preferred Developer'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Congratulations! You have been selected as a preferred developer for this listing.',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'What this means:',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber[700],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '• The seller has specifically chosen you for this project',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
       ),
     );
   }

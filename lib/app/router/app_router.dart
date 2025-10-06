@@ -82,10 +82,7 @@ class AppRouter {
         path: '/dev/listing/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
-          return MainNavigation(
-            userRole: UserRole.developer,
-            child: ListingDetailPage(listingId: id),
-          );
+          return ListingDetailPage(listingId: id);
         },
       ),
         GoRoute(

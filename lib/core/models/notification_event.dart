@@ -6,11 +6,14 @@ enum NotificationType {
   offerRejected,
   offerCountered,
   listingVerified,
+  listingRejected,
+  listingApproved,
   listingExpired,
   subscriptionExpiring,
   newMessage,
   dealCompleted,
   kycRejected,
+  preferredDeveloper,
   systemAlert
 }
 
@@ -196,6 +199,43 @@ class NotificationEvent {
       body: 'Your listing "$listingTitle" has been verified and is now active',
       type: NotificationType.listingVerified,
       priority: NotificationPriority.normal,
+      deepLink: deepLink,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  factory NotificationEvent.listingApproved({
+    required String id,
+    required String userId,
+    required String listingTitle,
+    String? deepLink,
+  }) {
+    return NotificationEvent(
+      id: id,
+      userId: userId,
+      title: 'Listing Approved',
+      body: 'Your listing "$listingTitle" has been approved and is now live',
+      type: NotificationType.listingApproved,
+      priority: NotificationPriority.normal,
+      deepLink: deepLink,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  factory NotificationEvent.preferredDeveloper({
+    required String id,
+    required String userId,
+    required String listingTitle,
+    required String listingId,
+    String? deepLink,
+  }) {
+    return NotificationEvent(
+      id: id,
+      userId: userId,
+      title: 'You\'re a Preferred Developer!',
+      body: 'You have been selected as a preferred developer for "$listingTitle"',
+      type: NotificationType.preferredDeveloper,
+      priority: NotificationPriority.high,
       deepLink: deepLink,
       createdAt: DateTime.now(),
     );

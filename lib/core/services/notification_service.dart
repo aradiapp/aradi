@@ -111,6 +111,13 @@ class NotificationService {
     required Map<String, dynamic> data,
   }) async {
     try {
+      print('=== CREATING NOTIFICATION EVENT ===');
+      print('User ID: $userId');
+      print('Type: $type');
+      print('Title: $title');
+      print('Body: $body');
+      print('Data: $data');
+      
       final notification = NotificationEvent(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
@@ -122,6 +129,9 @@ class NotificationService {
         createdAt: DateTime.now(),
       );
 
+      print('Notification ID: ${notification.id}');
+      print('Saving to Firestore...');
+      
       await _firestore
           .collection('notifications')
           .doc(userId)
@@ -129,10 +139,13 @@ class NotificationService {
           .doc(notification.id)
           .set(notification.toJson());
 
+      print('Notification saved to Firestore successfully');
+
       // Send push notification
       await _sendPushNotification(userId, title, body, data);
     } catch (e) {
       print('Error creating notification event: $e');
+      print('Error details: ${e.toString()}');
     }
   }
 
@@ -319,6 +332,88 @@ class NotificationService {
         'reason': rejectionReason ?? '',
       },
     );
+  }
+
+  // Send notification for listing rejection
+  Future<void> notifyListingRejection({
+    required String recipientId,
+    required String listingTitle,
+    required String? rejectionReason,
+  }) async {
+    final title = 'Listing Rejected';
+    final body = rejectionReason != null 
+        ? 'Your listing "$listingTitle" has been rejected. Reason: $rejectionReason'
+        : 'Your listing "$listingTitle" has been rejected. Please review your information and resubmit.';
+    
+    await createNotificationEvent(
+      userId: recipientId,
+      type: NotificationType.listingRejected,
+      title: title,
+      body: body,
+      data: {
+        'type': 'listing_rejection',
+        'listingTitle': listingTitle,
+        'reason': rejectionReason ?? '',
+      },
+    );
+  }
+
+  // Send notification for listing approval
+  Future<void> notifyListingApproval({
+    required String recipientId,
+    required String listingTitle,
+  }) async {
+    final title = 'Listing Approved';
+    final body = 'Your listing "$listingTitle" has been approved and is now live';
+    
+    await createNotificationEvent(
+      userId: recipientId,
+      type: NotificationType.listingApproved,
+      title: title,
+      body: body,
+      data: {
+        'type': 'listing_approval',
+        'listingTitle': listingTitle,
+      },
+    );
+  }
+
+  // Send notification for preferred developer selection
+  Future<void> notifyPreferredDeveloper({
+    required String developerId,
+    required String listingTitle,
+    required String listingId,
+    required String listingPrice,
+    required String area,
+  }) async {
+    print('=== PREFERRED DEVELOPER NOTIFICATION DEBUG ===');
+    print('Developer ID: $developerId');
+    print('Listing Title: $listingTitle');
+    print('Listing ID: $listingId');
+    print('Listing Price: $listingPrice');
+    print('Area: $area');
+    
+    final title = 'You\'re a Preferred Developer!';
+    final body = 'You have been selected as a preferred developer for "$listingTitle"';
+    
+    print('Notification Title: $title');
+    print('Notification Body: $body');
+    
+    await createNotificationEvent(
+      userId: developerId,
+      type: NotificationType.preferredDeveloper,
+      title: title,
+      body: body,
+      data: {
+        'type': 'preferred_developer',
+        'listingTitle': listingTitle,
+        'listingId': listingId,
+        'listingPrice': listingPrice,
+        'area': area,
+      },
+    );
+    
+    print('=== NOTIFICATION CREATION COMPLETED ===');
   }
 }
 

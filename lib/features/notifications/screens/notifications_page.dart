@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/notification_event.dart';
+import 'package:aradi/core/services/notification_service.dart';
+import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/app/providers/data_providers.dart';
 
-class NotificationsPage extends StatefulWidget {
+class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
 
   @override
-  State<NotificationsPage> createState() => _NotificationsPageState();
+  ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
 }
 
-class _NotificationsPageState extends State<NotificationsPage> {
+class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   List<NotificationEvent> _notifications = [];
   bool _isLoading = true;
 
@@ -26,9 +30,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
     });
 
     try {
-      _notifications = <NotificationEvent>[]; // No mock data - will be loaded from Firebase
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser != null) {
+        final notificationService = NotificationService();
+        _notifications = await notificationService.getNotifications(currentUser.id);
+        print('Loaded ${_notifications.length} notifications for user ${currentUser.id}');
+      } else {
+        _notifications = [];
+        print('No current user found');
+      }
     } catch (e) {
       print('Error loading notifications: $e');
+      _notifications = [];
     } finally {
       setState(() {
         _isLoading = false;
@@ -97,33 +112,280 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  void _markAllAsRead() {
-    setState(() {
-      for (var notification in _notifications) {
-        // In a real app, this would update the notification status
+  void _markAllAsRead() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser != null) {
+        final notificationService = NotificationService();
+        // Mark all notifications as read
+        for (var notification in _notifications) {
+          await notificationService.markAsRead(currentUser.id, notification.id);
+        }
+        
+        setState(() {
+          for (var notification in _notifications) {
+            // Update local state
+          }
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All notifications marked as read'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
       }
-    });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error marking notifications as read: $e'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    }
+  }
+
+  void _handleNotificationTap(NotificationEvent notification) async {
+    // Mark notification as read
+    try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser != null && !notification.isRead) {
+        final notificationService = NotificationService();
+        await notificationService.markAsRead(currentUser.id, notification.id);
+        
+        // Update local state
+        setState(() {
+          // Update the notification in the list
+          final index = _notifications.indexWhere((n) => n.id == notification.id);
+          if (index != -1) {
+            _notifications[index] = notification.copyWith(isRead: true);
+          }
+        });
+      }
+    } catch (e) {
+      print('Error marking notification as read: $e');
+    }
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('All notifications marked as read'),
-        backgroundColor: AppTheme.successColor,
+    // Show notification details popup
+    _showNotificationDetails(notification);
+  }
+
+  void _showNotificationDetails(NotificationEvent notification) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              _getNotificationIcon(notification.type),
+              color: _getNotificationColor(notification.type),
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                notification.title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              notification.body,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _formatNotificationTime(notification.createdAt),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            if (notification.data != null && notification.data!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.backgroundLight,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.borderColor),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Additional Details:',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._getFilteredNotificationData(notification).entries.map((entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${entry.key}: ',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              entry.value.toString(),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )).toList(),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          // Handle preferred developer notification with View Listing button
+          if (notification.type == NotificationType.preferredDeveloper && 
+              notification.data != null && 
+              notification.data!['listingId'] != null)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.go('/dev/listing/${notification.data!['listingId']}');
+              },
+              child: const Text('View Listing'),
+            )
+          // Handle other notifications with deep links
+          else if (notification.deepLink != null)
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.go(notification.deepLink!);
+              },
+              child: const Text('View Details'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
 
-  void _handleNotificationTap(NotificationEvent notification) {
-    // Navigate based on notification type
-    if (notification.deepLink != null) {
-      context.go(notification.deepLink!);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Notification tapped'),
-          backgroundColor: AppTheme.primaryColor,
-        ),
-      );
+  IconData _getNotificationIcon(NotificationType type) {
+    switch (type) {
+      case NotificationType.offerReceived:
+        return Icons.attach_money;
+      case NotificationType.offerAccepted:
+        return Icons.check_circle;
+      case NotificationType.offerRejected:
+        return Icons.cancel;
+      case NotificationType.newMessage:
+        return Icons.message;
+      case NotificationType.kycRejected:
+        return Icons.warning;
+      case NotificationType.listingRejected:
+        return Icons.warning;
+      case NotificationType.listingApproved:
+        return Icons.check_circle;
+      case NotificationType.preferredDeveloper:
+        return Icons.workspace_premium;
+      case NotificationType.systemAlert:
+        return Icons.info;
+      default:
+        return Icons.notifications;
     }
+  }
+
+  Color _getNotificationColor(NotificationType type) {
+    switch (type) {
+      case NotificationType.offerReceived:
+        return AppTheme.successColor;
+      case NotificationType.offerAccepted:
+        return AppTheme.successColor;
+      case NotificationType.offerRejected:
+        return AppTheme.errorColor;
+      case NotificationType.newMessage:
+        return AppTheme.primaryColor;
+      case NotificationType.kycRejected:
+        return AppTheme.errorColor;
+      case NotificationType.listingRejected:
+        return AppTheme.errorColor;
+      case NotificationType.listingApproved:
+        return AppTheme.successColor;
+      case NotificationType.preferredDeveloper:
+        return Colors.amber[700]!;
+      case NotificationType.systemAlert:
+        return AppTheme.warningColor;
+      default:
+        return AppTheme.primaryColor;
+    }
+  }
+
+  String _formatNotificationTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  Map<String, dynamic> _getFilteredNotificationData(NotificationEvent notification) {
+    if (notification.data == null || notification.data!.isEmpty) {
+      return {};
+    }
+
+    // For preferred developer notifications, only show specific fields
+    if (notification.type == NotificationType.preferredDeveloper) {
+      final filteredData = <String, dynamic>{};
+      
+      // Only include listingTitle, listingPrice, and area
+      if (notification.data!.containsKey('listingTitle')) {
+        filteredData['Listing Title'] = notification.data!['listingTitle'];
+      }
+      if (notification.data!.containsKey('listingPrice')) {
+        filteredData['Listing Price'] = notification.data!['listingPrice'];
+      }
+      if (notification.data!.containsKey('area')) {
+        filteredData['Area'] = notification.data!['area'];
+      }
+      
+      return filteredData;
+    }
+
+    // For all other notifications, show all data
+    return notification.data!;
   }
 }
 

@@ -7,6 +7,8 @@ import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/models/developer_profile.dart';
+import 'package:aradi/core/services/location_service.dart';
+import 'package:aradi/core/services/notification_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,9 +28,9 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   
   final _titleController = TextEditingController();
   final _locationController = TextEditingController();
-  final _areaController = TextEditingController();
-  final _emirateController = TextEditingController();
-  final _cityController = TextEditingController();
+  String _selectedEmirate = '';
+  String _selectedCity = '';
+  String _selectedArea = '';
   final _landSizeController = TextEditingController();
   final _gfaController = TextEditingController();
   final _askingPriceController = TextEditingController();
@@ -67,9 +69,6 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   void dispose() {
     _titleController.dispose();
     _locationController.dispose();
-    _areaController.dispose();
-    _emirateController.dispose();
-    _cityController.dispose();
     _landSizeController.dispose();
     _gfaController.dispose();
     _askingPriceController.dispose();
@@ -113,9 +112,9 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   void _populateForm(LandListing listing) {
     _titleController.text = '${listing.emirate}, ${listing.city}';
     _locationController.text = '${listing.emirate}, ${listing.city}';
-    _areaController.text = listing.area;
-    _emirateController.text = listing.emirate;
-    _cityController.text = listing.city;
+    _selectedEmirate = listing.emirate;
+    _selectedCity = listing.city;
+    _selectedArea = listing.area;
     _landSizeController.text = listing.landSize.toString();
     _gfaController.text = listing.gfa.toString();
     _askingPriceController.text = listing.askingPrice.toString();
@@ -216,9 +215,9 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
 
       // Create updated listing
       final updatedListing = _originalListing!.copyWith(
-        area: _areaController.text.trim(),
-        emirate: _emirateController.text.trim(),
-        city: _cityController.text.trim(),
+        area: _selectedArea,
+        emirate: _selectedEmirate,
+        city: _selectedCity,
         landSize: double.tryParse(_landSizeController.text) ?? 0.0,
         gfa: double.tryParse(_gfaController.text) ?? 0.0,
         askingPrice: double.tryParse(_askingPriceController.text) ?? 0.0,
@@ -239,6 +238,8 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
 
       // Update listing in database
       await _landListingService.updateListing(_originalListing!.id, updatedListing);
+
+      // Note: Preferred developer notifications will be sent when admin approves the listing
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -313,45 +314,108 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildTextField(
-                        controller: _emirateController,
-                        label: 'Emirate',
-                        hint: 'e.g., Dubai',
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter an emirate';
-                          }
-                          return null;
-                        },
-                      ),
+                // Emirate Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedEmirate.isEmpty ? null : _selectedEmirate,
+                  decoration: InputDecoration(
+                    labelText: 'Emirate',
+                    hintText: 'Select Emirate',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildTextField(
-                        controller: _cityController,
-                        label: 'City',
-                        hint: 'e.g., Dubai',
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a city';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  items: LocationService.getEmirates().map((emirate) {
+                    return DropdownMenuItem<String>(
+                      value: emirate,
+                      child: Text(emirate),
+                    );
+                  }).toList(),
+                  onChanged: (String? emirate) {
+                    setState(() {
+                      _selectedEmirate = emirate ?? '';
+                      _selectedCity = '';
+                      _selectedArea = '';
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select an Emirate';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
-                _buildTextField(
-                  controller: _areaController,
-                  label: 'Area',
-                  hint: 'Enter area',
+
+                // City Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedCity.isEmpty ? null : 
+                    (_selectedEmirate.isNotEmpty && LocationService.getCities(_selectedEmirate).contains(_selectedCity)) 
+                      ? _selectedCity : null,
+                  decoration: InputDecoration(
+                    labelText: 'City',
+                    hintText: 'Select City',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  items: _selectedEmirate.isNotEmpty
+                      ? LocationService.getCities(_selectedEmirate).map((city) {
+                          return DropdownMenuItem<String>(
+                            value: city,
+                            child: Text(city),
+                          );
+                        }).toList()
+                      : [],
+                  onChanged: _selectedEmirate.isNotEmpty
+                      ? (String? city) {
+                          setState(() {
+                            _selectedCity = city ?? '';
+                            _selectedArea = '';
+                          });
+                        }
+                      : null,
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter an area';
+                    if (_selectedEmirate.isNotEmpty && (value == null || value.isEmpty)) {
+                      return 'Please select a City';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Area Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedArea.isEmpty ? null : 
+                    (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty && LocationService.getAreas(_selectedEmirate, _selectedCity).contains(_selectedArea)) 
+                      ? _selectedArea : null,
+                  decoration: InputDecoration(
+                    labelText: 'Area',
+                    hintText: 'Select Area',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  items: (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty)
+                      ? LocationService.getAreas(_selectedEmirate, _selectedCity).map((area) {
+                          return DropdownMenuItem<String>(
+                            value: area,
+                            child: Text(area),
+                          );
+                        }).toList()
+                      : [],
+                  onChanged: (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty)
+                      ? (String? area) {
+                          setState(() {
+                            _selectedArea = area ?? '';
+                          });
+                        }
+                      : null,
+                  validator: (value) {
+                    if (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty && (value == null || value.isEmpty)) {
+                      return 'Please select an Area';
                     }
                     return null;
                   },

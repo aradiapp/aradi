@@ -5,6 +5,8 @@ import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:aradi/core/services/location_service.dart';
+import 'package:aradi/core/services/notification_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -21,9 +23,9 @@ class LandFormPage extends ConsumerStatefulWidget {
 
 class _LandFormPageState extends ConsumerState<LandFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emirateController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _areaController = TextEditingController();
+  String _selectedEmirate = '';
+  String _selectedCity = '';
+  String _selectedArea = '';
   final _landSizeController = TextEditingController();
   final _gfaController = TextEditingController();
   final _priceController = TextEditingController();
@@ -54,9 +56,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
 
   @override
   void dispose() {
-    _emirateController.dispose();
-    _cityController.dispose();
-    _areaController.dispose();
     _landSizeController.dispose();
     _gfaController.dispose();
     _priceController.dispose();
@@ -94,33 +93,134 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               ),
               const SizedBox(height: 24),
 
-              // Emirate
-              _buildTextField(
-                controller: _emirateController,
-                label: 'Emirate',
-                hint: 'e.g., Dubai',
-                icon: Icons.location_on,
-                validator: (value) => value?.isEmpty == true ? 'Emirate is required' : null,
+              // Emirate Dropdown
+              DropdownButtonFormField<String>(
+                value: () {
+                  final value = _selectedEmirate.isEmpty ? null : _selectedEmirate;
+                  print('Emirate dropdown value: $value (from _selectedEmirate: $_selectedEmirate)');
+                  return value;
+                }(),
+                decoration: InputDecoration(
+                  labelText: 'Emirate',
+                  hintText: 'Select Emirate',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                items: LocationService.getEmirates().map((emirate) {
+                  return DropdownMenuItem<String>(
+                    value: emirate,
+                    child: Text(emirate),
+                  );
+                }).toList(),
+                onChanged: (String? emirate) {
+                  print('=== DROPDOWN DEBUG ===');
+                  print('Emirate changed to: $emirate');
+                  print('Before setState - _selectedEmirate: $_selectedEmirate, _selectedCity: $_selectedCity, _selectedArea: $_selectedArea');
+                  setState(() {
+                    _selectedEmirate = emirate ?? '';
+                    _selectedCity = '';
+                    _selectedArea = '';
+                  });
+                  print('After setState - _selectedEmirate: $_selectedEmirate, _selectedCity: $_selectedCity, _selectedArea: $_selectedArea');
+                  print('========================');
+                },
+                // validator: (value) {
+                //   if (value == null || value.isEmpty) {
+                //     return 'Please select an Emirate';
+                //   }
+                //   return null;
+                // },
               ),
               const SizedBox(height: 16),
 
-              // City
-              _buildTextField(
-                controller: _cityController,
-                label: 'City',
-                hint: 'e.g., Dubai',
-                icon: Icons.location_city,
-                validator: (value) => value?.isEmpty == true ? 'City is required' : null,
+              // City Dropdown
+              DropdownButtonFormField<String>(
+                value: () {
+                  final value = _selectedCity.isEmpty ? null : _selectedCity;
+                  print('City dropdown value: $value (from _selectedCity: $_selectedCity)');
+                  return value;
+                }(),
+                decoration: InputDecoration(
+                  labelText: 'City',
+                  hintText: 'Select City',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                items: _selectedEmirate.isNotEmpty
+                    ? LocationService.getCities(_selectedEmirate).map((city) {
+                        return DropdownMenuItem<String>(
+                          value: city,
+                          child: Text(city),
+                        );
+                      }).toList()
+                    : [],
+                onChanged: _selectedEmirate.isNotEmpty
+                    ? (String? city) {
+                        print('=== DROPDOWN DEBUG ===');
+                        print('City changed to: $city');
+                        print('Before setState - _selectedEmirate: $_selectedEmirate, _selectedCity: $_selectedCity, _selectedArea: $_selectedArea');
+                        setState(() {
+                          _selectedCity = city ?? '';
+                          _selectedArea = '';
+                        });
+                        print('After setState - _selectedEmirate: $_selectedEmirate, _selectedCity: $_selectedCity, _selectedArea: $_selectedArea');
+                        print('========================');
+                      }
+                    : null,
+                // validator: (value) {
+                //   if (_selectedEmirate.isNotEmpty && (value == null || value.isEmpty)) {
+                //     return 'Please select a City';
+                //   }
+                //   return null;
+                // },
               ),
               const SizedBox(height: 16),
 
-              // Area
-              _buildTextField(
-                controller: _areaController,
-                label: 'Area',
-                hint: 'e.g., Dubai Marina',
-                icon: Icons.map,
-                validator: (value) => value?.isEmpty == true ? 'Area is required' : null,
+              // Area Dropdown
+              DropdownButtonFormField<String>(
+                value: () {
+                  final value = _selectedArea.isEmpty ? null : _selectedArea;
+                  print('Area dropdown value: $value (from _selectedArea: $_selectedArea)');
+                  return value;
+                }(),
+                decoration: InputDecoration(
+                  labelText: 'Area',
+                  hintText: 'Select Area',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                items: (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty)
+                    ? LocationService.getAreas(_selectedEmirate, _selectedCity).map((area) {
+                        return DropdownMenuItem<String>(
+                          value: area,
+                          child: Text(area),
+                        );
+                      }).toList()
+                    : [],
+                onChanged: (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty)
+                    ? (String? area) {
+                        print('=== DROPDOWN DEBUG ===');
+                        print('Area changed to: $area');
+                        print('Before setState - _selectedEmirate: $_selectedEmirate, _selectedCity: $_selectedCity, _selectedArea: $_selectedArea');
+                        setState(() {
+                          _selectedArea = area ?? '';
+                        });
+                        print('After setState - _selectedEmirate: $_selectedEmirate, _selectedCity: $_selectedCity, _selectedArea: $_selectedArea');
+                        print('========================');
+                      }
+                    : null,
+                // validator: (value) {
+                //   if (_selectedEmirate.isNotEmpty && _selectedCity.isNotEmpty && (value == null || value.isEmpty)) {
+                //     return 'Please select an Area';
+                //   }
+                //   return null;
+                // },
               ),
               const SizedBox(height: 16),
 
@@ -782,9 +882,9 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
         id: '', // Will be set by Firestore
         sellerId: currentUser.id,
         sellerName: currentUser.name,
-        area: _areaController.text.trim(),
-        emirate: _emirateController.text.trim(),
-        city: _cityController.text.trim(),
+        area: _selectedArea,
+        emirate: _selectedEmirate,
+        city: _selectedCity,
         landSize: double.parse(_landSizeController.text.trim()),
         gfa: double.parse(_gfaController.text.trim()),
         askingPrice: double.parse(_priceController.text.trim()),
@@ -859,10 +959,7 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
       await _landListingService.createListing(updatedListing);
       print('Listing saved successfully!');
 
-      // Send notifications to preferred developers
-      if (_selectedPreferredDevelopers.isNotEmpty) {
-        await _sendNotificationsToDevelopers(updatedListing);
-      }
+      // Note: Preferred developer notifications will be sent when admin approves the listing
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1186,43 +1283,4 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
     }
   }
 
-  // Method to send notifications to preferred developers
-  Future<void> _sendNotificationsToDevelopers(LandListing listing) async {
-    try {
-      print('Sending notifications to ${_selectedPreferredDevelopers.length} developers...');
-      
-      // Get developer details for notifications
-      final developers = await _getVerifiedDevelopers();
-      final selectedDevelopers = developers.where((dev) => 
-        _selectedPreferredDevelopers.contains(dev['id'])).toList();
-
-      for (final developer in selectedDevelopers) {
-        try {
-          // Create notification for each developer
-          await FirebaseFirestore.instance.collection('notifications').add({
-            'userId': developer['userId'],
-            'title': 'New Listing Available',
-            'body': 'A new land listing has been created that matches your preferences: ${listing.emirate}, ${listing.city}',
-            'type': 'new_listing',
-            'data': {
-              'listingId': listing.id,
-              'sellerId': listing.sellerId,
-              'location': '${listing.emirate}, ${listing.city}',
-              'price': listing.askingPrice,
-            },
-            'createdAt': FieldValue.serverTimestamp(),
-            'isRead': false,
-          });
-          
-          print('Notification sent to developer: ${developer['companyName']}');
-        } catch (e) {
-          print('Error sending notification to ${developer['companyName']}: $e');
-        }
-      }
-      
-      print('Notifications sent to ${selectedDevelopers.length} developers');
-    } catch (e) {
-      print('Error sending notifications: $e');
-    }
-  }
 }

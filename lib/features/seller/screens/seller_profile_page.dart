@@ -233,7 +233,6 @@ class _SellerProfilePageState extends ConsumerState<SellerProfilePage> {
               _buildImageField(context, 'Company Trade License:', profile.companyTradeLicense!),
             if (profile.logoUrl != null)
               _buildImageField(context, 'Company Logo:', profile.logoUrl!),
-            _buildDetailRow(context, 'Interested Developers:', profile.interestedDevelopers.length.toString()),
           ],
         ),
       ),

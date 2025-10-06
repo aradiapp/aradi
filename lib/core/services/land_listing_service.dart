@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/services/matching_service.dart';
+import 'package:aradi/core/services/notification_service.dart';
 
 class LandListingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -162,6 +163,12 @@ class LandListingService {
   /// Verify a listing (admin action)
   Future<void> verifyListing(String listingId, bool isVerified) async {
     try {
+      // Get the listing first to get seller info
+      final listing = await getListingById(listingId);
+      if (listing == null) {
+        throw Exception('Listing not found');
+      }
+
       await _firestore
           .collection('land_listings')
           .doc(listingId)
@@ -171,9 +178,66 @@ class LandListingService {
         'status': isVerified ? 'active' : 'rejected',
         'verifiedAt': FieldValue.serverTimestamp(),
       });
+
+      // Send notifications if listing is approved
+      if (isVerified) {
+        try {
+          final notificationService = NotificationService();
+          
+          // Send notification to seller
+          await notificationService.notifyListingApproval(
+            recipientId: listing.sellerId,
+            listingTitle: '${listing.emirate}, ${listing.city}',
+          );
+          
+          // Send notifications to preferred developers
+          if (listing.preferredDeveloperIds.isNotEmpty) {
+            print('=== SENDING PREFERRED DEVELOPER NOTIFICATIONS (ADMIN APPROVAL) ===');
+            print('Preferred developers: ${listing.preferredDeveloperIds}');
+            
+            for (final developerId in listing.preferredDeveloperIds) {
+              try {
+                await notificationService.notifyPreferredDeveloper(
+                  developerId: developerId,
+                  listingTitle: '${listing.emirate}, ${listing.city}',
+                  listingId: listing.id,
+                  listingPrice: 'AED ${listing.askingPrice.toStringAsFixed(0)}',
+                  area: listing.area,
+                );
+                print('Preferred developer notification sent to: $developerId');
+              } catch (e) {
+                print('Error sending notification to developer $developerId: $e');
+              }
+            }
+          } else {
+            print('No preferred developers to notify');
+          }
+        } catch (e) {
+          print('Error sending approval notifications: $e');
+        }
+      }
     } catch (e) {
       print('Error verifying listing: $e');
       throw Exception('Failed to verify listing: $e');
+    }
+  }
+
+  /// Reject a listing (admin action)
+  Future<void> rejectListing(String listingId, {String? rejectionReason}) async {
+    try {
+      await _firestore
+          .collection('land_listings')
+          .doc(listingId)
+          .update({
+        'isVerified': false,
+        'isActive': false,
+        'status': 'rejected',
+        'rejectionReason': rejectionReason,
+        'rejectedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error rejecting listing: $e');
+      throw Exception('Failed to reject listing: $e');
     }
   }
 

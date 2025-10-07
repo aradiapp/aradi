@@ -23,9 +23,12 @@ import 'package:aradi/features/seller/screens/seller_home_page.dart';
 import 'package:aradi/features/seller/screens/land_form_page.dart';
 import 'package:aradi/features/seller/screens/seller_land_listing_page.dart';
 import 'package:aradi/features/seller/screens/edit_listing_page.dart';
-import 'package:aradi/features/seller/screens/seller_dev_browser_page.dart';
+import 'package:aradi/features/seller/screens/seller_browse_page.dart';
+import 'package:aradi/features/seller/screens/seller_developer_detail_page.dart';
+import 'package:aradi/features/seller/screens/seller_negotiations_page.dart';
 import 'package:aradi/features/seller/screens/seller_profile_page.dart';
 import 'package:aradi/features/seller/screens/seller_profile_edit_page.dart';
+import 'package:aradi/features/developer/screens/developer_negotiations_page.dart';
 import 'package:aradi/features/negotiations/screens/inbox_page.dart';
 import 'package:aradi/features/negotiations/screens/thread_page.dart';
 import 'package:aradi/features/negotiations/screens/agreement_page.dart';
@@ -113,6 +116,13 @@ class AppRouter {
           child: const DevAnalyticsPage(),
         ),
       ),
+      GoRoute(
+        path: '/dev/negotiations',
+        builder: (context, state) => MainNavigation(
+          userRole: UserRole.developer,
+          child: const DeveloperNegotiationsPage(),
+        ),
+      ),
       
       // Buyer Routes
       GoRoute(
@@ -195,11 +205,21 @@ class AppRouter {
         },
       ),
       GoRoute(
-        path: '/seller/developers',
+        path: '/seller/browse',
         builder: (context, state) => MainNavigation(
           userRole: UserRole.seller,
-          child: const SellerDevBrowserPage(),
+          child: const SellerBrowsePage(),
         ),
+      ),
+      GoRoute(
+        path: '/seller/developer/:id',
+        builder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return MainNavigation(
+            userRole: UserRole.seller,
+            child: SellerDeveloperDetailPage(developerId: id),
+          );
+        },
       ),
         GoRoute(
           path: '/seller/profile',
@@ -213,6 +233,13 @@ class AppRouter {
           builder: (context, state) => MainNavigation(
             userRole: UserRole.seller,
             child: const SellerProfileEditPage(),
+          ),
+        ),
+        GoRoute(
+          path: '/seller/negotiations',
+          builder: (context, state) => MainNavigation(
+            userRole: UserRole.seller,
+            child: const SellerNegotiationsPage(),
           ),
         ),
       

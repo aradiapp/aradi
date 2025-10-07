@@ -325,10 +325,6 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
             _buildDetailRow('Description', listing.description!),
           if (listing.buildingSpecs?.isNotEmpty == true) 
             _buildDetailRow('Building Specifications', listing.buildingSpecs!),
-          if (listing.gFloorSpecs?.isNotEmpty == true) 
-            _buildDetailRow('G Floor Specifications', listing.gFloorSpecs!),
-          if (listing.technicalSpecs?.isNotEmpty == true) 
-            _buildDetailRow('Technical Specifications', listing.technicalSpecs!),
           
           const SizedBox(height: 8),
           

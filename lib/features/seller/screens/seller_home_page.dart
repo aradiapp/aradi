@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/models/offer.dart';
+import 'package:aradi/core/models/negotiation.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/offer_service.dart';
+import 'package:aradi/core/services/negotiation_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,9 +21,14 @@ class SellerHomePage extends ConsumerStatefulWidget {
 class _SellerHomePageState extends ConsumerState<SellerHomePage> {
   List<LandListing> _myListings = [];
   List<Offer> _offers = [];
+  List<Negotiation> _negotiations = [];
   bool _isLoading = true;
   final LandListingService _landListingService = LandListingService();
   final OfferService _offerService = OfferService();
+  final NegotiationService _negotiationService = NegotiationService();
+  
+  // Track negotiation status for each listing
+  Map<String, String> _listingNegotiationStatus = {};
 
   @override
   void initState() {
@@ -47,8 +54,25 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
       final allListings = await _landListingService.getListingsBySeller(currentUser.id);
       _myListings = allListings.where((listing) => listing.status != ListingStatus.rejected).toList();
 
-      // Load offers for seller's listings
-      _offers = await _offerService.getOffersForSeller(currentUser.id);
+      // Check negotiation status for each listing
+      await _checkNegotiationStatus();
+
+      // Load negotiations for seller's listings (replacing old offers system)
+      _negotiations = await _negotiationService.getNegotiationsForUser(currentUser.id, 'seller');
+      
+      
+      // Convert negotiations to offers for compatibility with existing UI
+      _offers = _negotiations.map((negotiation) => Offer(
+        id: negotiation.id,
+        listingId: negotiation.listingId,
+        developerId: negotiation.developerId,
+        developerName: negotiation.developerName,
+        type: OfferType.buy, // Default type, could be determined from negotiation content
+        status: negotiation.status,
+        notes: '',
+        createdAt: negotiation.createdAt,
+        updatedAt: negotiation.updatedAt,
+      )).toList();
     } catch (e) {
       print('Error loading data: $e');
       if (mounted) {
@@ -65,6 +89,43 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _checkNegotiationStatus() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final currentUser = await authService.getCurrentUser();
+      
+      if (currentUser == null) return;
+
+      final negotiations = await _negotiationService.getNegotiationsForUser(currentUser.id, 'seller');
+      
+      for (final listing in _myListings) {
+        final listingNegotiations = negotiations.where((n) => n.listingId == listing.id).toList();
+        
+        if (listingNegotiations.isNotEmpty) {
+          // Check if any negotiation is accepted
+          final hasAccepted = listingNegotiations.any((n) => n.status.toString().contains('accepted'));
+          
+          if (hasAccepted) {
+            // Check if it's a JV proposal
+            final acceptedNegotiation = listingNegotiations.firstWhere((n) => n.status.toString().contains('accepted'));
+            final isJV = acceptedNegotiation.messages.any((message) => 
+              message.content.contains('JV Proposal') || 
+              message.content.contains('% Landowner') ||
+              message.content.contains('% Developer'));
+            
+            _listingNegotiationStatus[listing.id] = isJV ? 'Admin will contact you' : 'Pending Admin';
+          } else {
+            _listingNegotiationStatus[listing.id] = 'Active';
+          }
+        } else {
+          _listingNegotiationStatus[listing.id] = 'Active';
+        }
+      }
+    } catch (e) {
+      print('Error checking negotiation status: $e');
     }
   }
 
@@ -196,7 +257,8 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
 
   Widget _buildQuickStats() {
     final activeListings = _myListings.where((l) => l.isActive).length;
-    final pendingOffers = _offers.where((o) => o.status == OfferStatus.sent).length;
+    final pendingOffers = _offers.where((o) => 
+      o.status == OfferStatus.sent || o.status == OfferStatus.pending || o.status == OfferStatus.countered).length;
     final totalValue = _myListings.fold<double>(0, (sum, listing) => sum + listing.askingPrice);
 
     return Column(
@@ -284,6 +346,7 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
                 child: _ListingCard(
                   listing: listing,
                   offerCount: listingOffers.length,
+                  negotiationStatus: _listingNegotiationStatus[listing.id] ?? 'Active',
                   onTap: () => context.go('/seller/listing/${listing.id}'),
                 ),
               );
@@ -294,7 +357,14 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
   }
 
   Widget _buildRecentOffers() {
-    final recentOffers = _offers.take(3).toList();
+    // Sort offers by creation date (most recent first) and take top 3
+    // Show all offers except rejected ones for recent offers section
+    final recentOffers = _offers
+        .where((offer) => offer.status != OfferStatus.rejected)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final topOffers = recentOffers.take(3).toList();
+    
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,13 +381,13 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
             ),
             if (_offers.length > 3)
               TextButton(
-                onPressed: () => context.go('/neg'),
+                onPressed: () => context.go('/seller/negotiations'),
                 child: const Text('View All'),
               ),
           ],
-              ),
-              const SizedBox(height: 16),
-        if (_offers.isEmpty)
+        ),
+        const SizedBox(height: 16),
+        if (topOffers.isEmpty)
           _EmptyState(
             icon: Icons.mail_outline,
             title: 'No Offers Yet',
@@ -327,16 +397,16 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: recentOffers.length,
+            itemCount: topOffers.length,
             itemBuilder: (context, index) {
-              final offer = recentOffers[index];
+              final offer = topOffers[index];
               final listing = _myListings.firstWhere((l) => l.id == offer.listingId);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _OfferCard(
                   offer: offer,
                   listing: listing,
-                  onTap: () => context.go('/neg/thread/${offer.id}'),
+                  onTap: () => context.go('/seller/negotiations'),
                 ),
               );
             },
@@ -344,6 +414,7 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
       ],
     );
   }
+
 
   void _showListingDetails(BuildContext context, LandListing listing, List<Offer> offers) {
     showModalBottomSheet(
@@ -569,11 +640,13 @@ class _QuickStatCard extends StatelessWidget {
 class _ListingCard extends StatelessWidget {
   final LandListing listing;
   final int offerCount;
+  final String negotiationStatus;
   final VoidCallback onTap;
 
   const _ListingCard({
     required this.listing,
     required this.offerCount,
+    required this.negotiationStatus,
     required this.onTap,
   });
 
@@ -617,17 +690,13 @@ class _ListingCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: listing.isVerified 
-                          ? AppTheme.successColor.withOpacity(0.1)
-                          : AppTheme.warningColor.withOpacity(0.1),
+                      color: _getStatusColor(negotiationStatus),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      listing.isVerified ? 'Active' : 'Pending',
+                      negotiationStatus,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: listing.isVerified 
-                            ? AppTheme.successColor
-                            : AppTheme.warningColor,
+                        color: _getStatusTextColor(negotiationStatus),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -665,6 +734,36 @@ class _ListingCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Active':
+        return AppTheme.successColor.withOpacity(0.1);
+      case 'Pending Admin':
+        return AppTheme.primaryColor.withOpacity(0.1);
+      case 'Admin will contact you':
+        return Colors.purple.withOpacity(0.1);
+      case 'Sold':
+        return Colors.grey.withOpacity(0.1);
+      default:
+        return AppTheme.warningColor.withOpacity(0.1);
+    }
+  }
+
+  Color _getStatusTextColor(String status) {
+    switch (status) {
+      case 'Active':
+        return AppTheme.successColor;
+      case 'Pending Admin':
+        return AppTheme.primaryColor;
+      case 'Admin will contact you':
+        return Colors.purple;
+      case 'Sold':
+        return Colors.grey;
+      default:
+        return AppTheme.warningColor;
+    }
   }
 }
 

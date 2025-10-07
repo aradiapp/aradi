@@ -597,4 +597,22 @@ class AuthService {
     }
   }
 
+  // Get developer by ID
+  Future<DeveloperProfile?> getDeveloperById(String developerId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('developerProfiles')
+          .doc(developerId)
+          .get();
+
+      if (doc.exists) {
+        return DeveloperProfile.fromJson(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching developer by ID: $e');
+      return null;
+    }
+  }
+
 }

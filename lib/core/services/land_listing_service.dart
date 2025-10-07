@@ -17,15 +17,44 @@ class LandListingService {
 
       print('Found ${querySnapshot.docs.length} active listings');
       
-      return querySnapshot.docs
+      final listings = querySnapshot.docs
           .map((doc) => LandListing.fromJson({
             ...doc.data(),
             'id': doc.id,
           }))
           .toList();
+
+      // Filter out listings with accepted negotiations
+      final availableListings = <LandListing>[];
+      for (final listing in listings) {
+        final hasAcceptedNegotiation = await _hasAcceptedNegotiation(listing.id);
+        if (!hasAcceptedNegotiation) {
+          availableListings.add(listing);
+        }
+      }
+
+      print('Found ${availableListings.length} available listings (excluding accepted ones)');
+      return availableListings;
     } catch (e) {
       print('Error fetching active listings: $e');
       return [];
+    }
+  }
+
+  /// Check if a listing has any accepted negotiations
+  Future<bool> _hasAcceptedNegotiation(String listingId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('negotiations')
+          .where('listingId', isEqualTo: listingId)
+          .where('status', isEqualTo: 'accepted')
+          .limit(1)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking accepted negotiations for listing $listingId: $e');
+      return false;
     }
   }
 
@@ -298,6 +327,24 @@ class LandListingService {
     } catch (e) {
       print('Error fetching listings by permission: $e');
       return [];
+    }
+  }
+
+  /// Mark a listing as sold when a negotiation is accepted
+  Future<void> markListingAsSold(String listingId) async {
+    try {
+      await _firestore
+          .collection('land_listings')
+          .doc(listingId)
+          .update({
+        'isActive': false,
+        'status': 'sold',
+        'soldAt': FieldValue.serverTimestamp(),
+      });
+      print('Listing $listingId marked as sold');
+    } catch (e) {
+      print('Error marking listing as sold: $e');
+      throw Exception('Failed to mark listing as sold: $e');
     }
   }
 }

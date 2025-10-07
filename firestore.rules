@@ -52,24 +52,34 @@ service cloud.firestore {
         (request.auth.uid == resource.data.sellerId || isAdmin());
     }
     
-    // Offers - participants can read/write
+    // Offers - developers can create, participants can read/write, admins can read all
     match /offers/{offerId} {
-      allow read, write: if request.auth != null && 
-        (request.auth.uid == resource.data.developerId);
-      allow read: if request.auth != null;
-    }
-    
-    // Negotiations - participants can read/write
-    match /negotiations/{negotiationId} {
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.developerId;
       allow read, write: if request.auth != null && 
         (request.auth.uid == resource.data.developerId || 
          request.auth.uid == resource.data.sellerId);
+      allow read, write: if isAdmin();
+    }
+    
+    // Negotiations - developers can create, participants can read/write, admins can read all
+    match /negotiations/{negotiationId} {
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.developerId;
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.developerId || 
+         request.auth.uid == resource.data.sellerId);
+      allow read, write: if isAdmin();
       
-      // Messages subcollection
+      // Messages subcollection - participants can create/read/write, admins can read all
       match /messages/{messageId} {
+        allow create: if request.auth != null && 
+          (request.auth.uid == get(/databases/$(database)/documents/negotiations/$(negotiationId)).data.developerId || 
+           request.auth.uid == get(/databases/$(database)/documents/negotiations/$(negotiationId)).data.sellerId);
         allow read, write: if request.auth != null && 
           (request.auth.uid == get(/databases/$(database)/documents/negotiations/$(negotiationId)).data.developerId || 
            request.auth.uid == get(/databases/$(database)/documents/negotiations/$(negotiationId)).data.sellerId);
+        allow read, write: if isAdmin();
       }
     }
     
@@ -82,6 +92,9 @@ service cloud.firestore {
     match /notifications/{userId}/events/{eventId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       allow write: if isAdmin();
+      // Allow developers to send notifications to sellers when making offers
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.senderId;
     }
   }
 }

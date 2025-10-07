@@ -13,10 +13,13 @@ class Deal {
   final String? developerId;
   final String? developerName;
   final double finalPrice;
+  final double? offerAmount; // Original offer amount
   final DealStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? acceptedAt; // When the deal was accepted
   final DateTime? completedAt;
+  final DateTime? cancelledAt; // When the deal was cancelled
   final String? completedBy; // Admin/Broker ID who marked it complete
   final String? notes;
 
@@ -31,10 +34,13 @@ class Deal {
     this.developerId,
     this.developerName,
     required this.finalPrice,
+    this.offerAmount,
     this.status = DealStatus.pending,
     required this.createdAt,
     required this.updatedAt,
+    this.acceptedAt,
     this.completedAt,
+    this.cancelledAt,
     this.completedBy,
     this.notes,
   });
@@ -51,14 +57,23 @@ class Deal {
       developerId: json['developerId'] as String?,
       developerName: json['developerName'] as String?,
       finalPrice: (json['finalPrice'] as num).toDouble(),
+      offerAmount: json['offerAmount'] != null
+          ? (json['offerAmount'] as num).toDouble()
+          : null,
       status: DealStatus.values.firstWhere(
         (e) => e.toString().split('.').last == json['status'],
         orElse: () => DealStatus.pending,
       ),
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       updatedAt: (json['updatedAt'] as Timestamp).toDate(),
+      acceptedAt: json['acceptedAt'] != null
+          ? (json['acceptedAt'] as Timestamp).toDate()
+          : null,
       completedAt: json['completedAt'] != null
           ? (json['completedAt'] as Timestamp).toDate()
+          : null,
+      cancelledAt: json['cancelledAt'] != null
+          ? (json['cancelledAt'] as Timestamp).toDate()
           : null,
       completedBy: json['completedBy'] as String?,
       notes: json['notes'] as String?,
@@ -77,10 +92,13 @@ class Deal {
       'developerId': developerId,
       'developerName': developerName,
       'finalPrice': finalPrice,
+      'offerAmount': offerAmount,
       'status': status.toString().split('.').last,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'acceptedAt': acceptedAt != null ? Timestamp.fromDate(acceptedAt!) : null,
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'cancelledAt': cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
       'completedBy': completedBy,
       'notes': notes,
     };
@@ -97,10 +115,13 @@ class Deal {
     String? developerId,
     String? developerName,
     double? finalPrice,
+    double? offerAmount,
     DealStatus? status,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? acceptedAt,
     DateTime? completedAt,
+    DateTime? cancelledAt,
     String? completedBy,
     String? notes,
   }) {
@@ -115,10 +136,13 @@ class Deal {
       developerId: developerId ?? this.developerId,
       developerName: developerName ?? this.developerName,
       finalPrice: finalPrice ?? this.finalPrice,
+      offerAmount: offerAmount ?? this.offerAmount,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      acceptedAt: acceptedAt ?? this.acceptedAt,
       completedAt: completedAt ?? this.completedAt,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
       completedBy: completedBy ?? this.completedBy,
       notes: notes ?? this.notes,
     );

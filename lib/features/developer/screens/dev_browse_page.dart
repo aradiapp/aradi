@@ -214,7 +214,7 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Listings (${_filteredListings.length})',
+            'Developers (${_filteredListings.length})',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -721,11 +721,54 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
       child: InkWell(
         onTap: () => context.go('/dev/listing/${listing.id}'),
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Stack(
+          children: [
+            // Background image
+            if (listing.photoUrls.isNotEmpty)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    listing.photoUrls.first,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            // Semi-transparent overlay
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.black.withOpacity(0.3),
+                ),
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Row(
                 children: [
                   Expanded(
@@ -734,6 +777,14 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(1, 1),
+                            blurRadius: 2,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -789,9 +840,16 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
               const SizedBox(height: 8),
               Text(
                 '${listing.emirate}, ${listing.city}',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontSize: 14,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(1, 1),
+                      blurRadius: 2,
+                      color: Colors.black54,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 12),
@@ -804,7 +862,7 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
                     child: _buildInfoItem('GFA', '${listing.gfa.toStringAsFixed(0)} sqm'),
                   ),
                   Expanded(
-                    child: _buildInfoItem('Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M'),
+                    child: _buildInfoItem('Price', 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(1)}M'),
                   ),
                 ],
               ),
@@ -816,22 +874,32 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
                     ),
                     child: Text(
                       permission,
-                      style: TextStyle(
-                        color: AppTheme.primaryColor,
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(1, 1),
+                            blurRadius: 2,
+                            color: Colors.black54,
+                          ),
+                        ],
                       ),
                     ),
                   );
                 }).toList(),
               ),
-            ],
-          ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -843,9 +911,16 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: AppTheme.textSecondary,
+          style: const TextStyle(
+            color: Colors.white70,
             fontSize: 12,
+            shadows: [
+              Shadow(
+                offset: Offset(1, 1),
+                blurRadius: 2,
+                color: Colors.black54,
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 2),
@@ -854,7 +929,17 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                offset: Offset(1, 1),
+                blurRadius: 2,
+                color: Colors.black54,
+              ),
+            ],
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
       ],
     );

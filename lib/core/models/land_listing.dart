@@ -23,6 +23,7 @@ class LandListing {
   final DateTime updatedAt;
   final DateTime? verifiedAt;
   final String? verifiedBy;
+  final DateTime? soldAt;
   
   // Additional properties for listing details
   final String description;
@@ -38,8 +39,6 @@ class LandListing {
   final String? titleDeedDocumentUrl;
   final String? dcrDocumentUrl;
   final String? buildingSpecs;
-  final String? gFloorSpecs;
-  final String? technicalSpecs;
   final List<String> preferredDeveloperIds;
 
   const LandListing({
@@ -60,6 +59,7 @@ class LandListing {
     required this.updatedAt,
     this.verifiedAt,
     this.verifiedBy,
+    this.soldAt,
     required this.description,
     required this.emirate,
     required this.city,
@@ -71,8 +71,6 @@ class LandListing {
     this.titleDeedDocumentUrl,
     this.dcrDocumentUrl,
     this.buildingSpecs,
-    this.gFloorSpecs,
-    this.technicalSpecs,
     this.preferredDeveloperIds = const [],
   });
 
@@ -120,6 +118,9 @@ class LandListing {
           ? (json['verifiedAt'] as Timestamp).toDate()
           : null,
       verifiedBy: json['verifiedBy'] as String?,
+      soldAt: json['soldAt'] != null
+          ? (json['soldAt'] as Timestamp).toDate()
+          : null,
       description: json['description'] as String? ?? 'Premium land plot available for development',
       emirate: json['emirate'] as String? ?? 'Dubai',
       city: json['city'] as String? ?? 'Dubai',
@@ -138,8 +139,6 @@ class LandListing {
       titleDeedDocumentUrl: json['titleDeedDocumentUrl'] as String?,
       dcrDocumentUrl: json['dcrDocumentUrl'] as String?,
       buildingSpecs: json['buildingSpecs'] as String?,
-      gFloorSpecs: json['gFloorSpecs'] as String?,
-      technicalSpecs: json['technicalSpecs'] as String?,
       preferredDeveloperIds: (json['preferredDeveloperIds'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList() ?? [],
@@ -167,6 +166,7 @@ class LandListing {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'verifiedAt': verifiedAt != null ? Timestamp.fromDate(verifiedAt!) : null,
       'verifiedBy': verifiedBy,
+      'soldAt': soldAt != null ? Timestamp.fromDate(soldAt!) : null,
       'description': description,
       'emirate': emirate,
       'city': city,
@@ -178,8 +178,6 @@ class LandListing {
       'titleDeedDocumentUrl': titleDeedDocumentUrl,
       'dcrDocumentUrl': dcrDocumentUrl,
       'buildingSpecs': buildingSpecs,
-      'gFloorSpecs': gFloorSpecs,
-      'technicalSpecs': technicalSpecs,
       'preferredDeveloperIds': preferredDeveloperIds,
     };
   }
@@ -213,8 +211,6 @@ class LandListing {
     String? titleDeedDocumentUrl,
     String? dcrDocumentUrl,
     String? buildingSpecs,
-    String? gFloorSpecs,
-    String? technicalSpecs,
     List<String>? preferredDeveloperIds,
   }) {
     return LandListing(
@@ -246,8 +242,6 @@ class LandListing {
       titleDeedDocumentUrl: titleDeedDocumentUrl ?? this.titleDeedDocumentUrl,
       dcrDocumentUrl: dcrDocumentUrl ?? this.dcrDocumentUrl,
       buildingSpecs: buildingSpecs ?? this.buildingSpecs,
-      gFloorSpecs: gFloorSpecs ?? this.gFloorSpecs,
-      technicalSpecs: technicalSpecs ?? this.technicalSpecs,
       preferredDeveloperIds: preferredDeveloperIds ?? this.preferredDeveloperIds,
     );
   }

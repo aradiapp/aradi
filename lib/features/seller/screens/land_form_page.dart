@@ -30,8 +30,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
   final _gfaController = TextEditingController();
   final _priceController = TextEditingController();
   final _buildingSpecsController = TextEditingController();
-  final _gFloorSpecsController = TextEditingController();
-  final _technicalSpecsController = TextEditingController();
   final _descriptionController = TextEditingController();
   
   String _selectedOwnership = 'freehold';
@@ -60,8 +58,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
     _gfaController.dispose();
     _priceController.dispose();
     _buildingSpecsController.dispose();
-    _gFloorSpecsController.dispose();
-    _technicalSpecsController.dispose();
     super.dispose();
   }
 
@@ -296,25 +292,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
               ),
               const SizedBox(height: 16),
 
-              // G Floor Specifications
-              _buildTextField(
-                controller: _gFloorSpecsController,
-                label: 'G Floor Specifications',
-                hint: 'Enter G floor specifications...',
-                icon: Icons.layers,
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
-              // Technical Specifications
-              _buildTextField(
-                controller: _technicalSpecsController,
-                label: 'Technical Specifications',
-                hint: 'Enter technical building specifications...',
-                icon: Icons.engineering,
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
 
               // Preferred Developers (for JV/Both)
               if (_selectedListingType == ListingType.jv || _selectedListingType == ListingType.both)
@@ -911,8 +888,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
         photos: [], // Keep photos empty, only use photoUrls for Firebase Storage URLs
         // New fields
         buildingSpecs: _buildingSpecsController.text.trim(),
-        gFloorSpecs: _gFloorSpecsController.text.trim(),
-        technicalSpecs: _technicalSpecsController.text.trim(),
         preferredDeveloperIds: _selectedPreferredDevelopers,
       );
 

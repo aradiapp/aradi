@@ -6,6 +6,7 @@ import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
+import 'package:aradi/core/services/negotiation_service.dart';
 import 'package:aradi/features/shared/widgets/fullscreen_image_viewer.dart';
 import 'dart:io';
 
@@ -24,6 +25,7 @@ class SellerLandListingPage extends ConsumerStatefulWidget {
 class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
   LandListing? _listing;
   bool _isLoading = true;
+  bool _hasAcceptedNegotiation = false;
   final PageController _pageController = PageController();
   int _currentPhotoIndex = 0;
 
@@ -43,9 +45,19 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
     try {
       final landListingService = LandListingService();
       final listing = await landListingService.getListingById(widget.listingId);
+      
+      // Check if listing has accepted negotiations
+      bool hasAccepted = false;
+      if (listing != null) {
+        final negotiationService = NegotiationService();
+        final negotiations = await negotiationService.getNegotiationsForUser(listing.sellerId, 'seller');
+        hasAccepted = negotiations.any((n) => n.listingId == listing.id && n.status.toString().contains('accepted'));
+      }
+      
       if (mounted) {
         setState(() {
           _listing = listing;
+          _hasAcceptedNegotiation = hasAccepted;
           _isLoading = false;
         });
       }
@@ -386,11 +398,11 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(listing.status),
+                    color: _getNegotiationStatusColor(),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    _getStatusText(listing.status),
+                    _getNegotiationStatusText(),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -436,14 +448,14 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {
+            onPressed: _hasAcceptedNegotiation ? null : () {
               final editUrl = '/seller/listing/${listing.id}/edit';
               context.go(editUrl);
             },
             icon: const Icon(Icons.edit),
             label: const Text('Edit Listing'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: _hasAcceptedNegotiation ? Colors.grey : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -452,11 +464,11 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
         const SizedBox(width: 16),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () => _showDeleteDialog(listing),
+            onPressed: _hasAcceptedNegotiation ? null : () => _showDeleteDialog(listing),
             icon: const Icon(Icons.delete),
             label: const Text('Delete'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: _hasAcceptedNegotiation ? Colors.grey : Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -648,6 +660,34 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
           _buildStatusCard(listing),
           const SizedBox(height: 16),
           
+          // Status message for accepted negotiations
+          if (_hasAcceptedNegotiation) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This listing has an accepted offer. You cannot edit or delete it.',
+                      style: TextStyle(
+                        color: Colors.orange[800],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
           // Action Buttons
           _buildActionButtons(listing),
         ],
@@ -668,7 +708,7 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
           icon: const Icon(Icons.arrow_back),
         ),
         actions: [
-          if (_listing != null)
+          if (_listing != null && !_hasAcceptedNegotiation)
             IconButton(
               onPressed: () {
                 final editUrl = '/seller/listing/${_listing!.id}/edit';
@@ -689,5 +729,22 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
                 )
               : _buildListingContent(),
     );
+  }
+
+  String _getNegotiationStatusText() {
+    if (_hasAcceptedNegotiation) {
+      // Check if it's a JV proposal by looking at the negotiation messages
+      final negotiationService = NegotiationService();
+      // For now, we'll assume it's a regular offer unless we can check the messages
+      return 'Pending Admin';
+    }
+    return _getStatusText(_listing!.status);
+  }
+
+  Color _getNegotiationStatusColor() {
+    if (_hasAcceptedNegotiation) {
+      return Colors.purple;
+    }
+    return _getStatusColor(_listing!.status);
   }
 }

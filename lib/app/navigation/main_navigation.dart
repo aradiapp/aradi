@@ -125,19 +125,24 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     for (int i = 0; i < navItems.length; i++) {
       final navRoute = navItems[i].route;
       
-      // Exact match
+      // Exact match first
       if (currentRoute == navRoute) {
         _currentIndex = i;
         print('Exact match found: $navRoute at index $i');
         break;
       }
       
-      // Handle specific routes first (most specific to least specific)
-      
-      // Handle profile routes - match exact profile routes only
-      if (navRoute == currentRoute) {
+      // Handle negotiations routes - match any negotiations route to the negotiations tab
+      if (navRoute.contains('negotiations') && currentRoute.contains('negotiations')) {
         _currentIndex = i;
-        print('Exact profile route match found: $navRoute at index $i');
+        print('Negotiations route match found: $navRoute at index $i');
+        break;
+      }
+      
+      // Handle buyer negotiations (uses /neg)
+      if (navRoute == '/neg' && currentRoute.startsWith('/neg')) {
+        _currentIndex = i;
+        print('Buyer negotiations route match found: $navRoute at index $i');
         break;
       }
       
@@ -148,20 +153,6 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         break;
       }
       
-      // Handle add listing routes - match any add route to the add tab
-      if (navRoute.contains('/land/add') && currentRoute.contains('/land/add')) {
-        _currentIndex = i;
-        print('Add listing route match found: $navRoute at index $i');
-        break;
-      }
-      
-      // Handle negotiations routes
-      if (navRoute == '/neg' && currentRoute.startsWith('/neg')) {
-        _currentIndex = i;
-        print('Negotiations route match found: $navRoute at index $i');
-        break;
-      }
-      
       // Handle notifications routes
       if (navRoute == '/notifications' && currentRoute == '/notifications') {
         _currentIndex = i;
@@ -169,16 +160,16 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         break;
       }
       
-      // Handle home routes (only exact matches or routes that don't contain /browse or /profile)
+      // Handle home routes (only exact matches or routes that don't contain /browse or /profile or /negotiations)
       if ((navRoute == '/buyer' && (currentRoute == '/buyer' || (currentRoute.startsWith('/buyer') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add')))) ||
-          (navRoute == '/seller' && (currentRoute == '/seller' || (currentRoute.startsWith('/seller') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add'))))) {
+          (navRoute == '/seller' && (currentRoute == '/seller' || (currentRoute.startsWith('/seller') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/land/add') && !currentRoute.contains('/negotiations'))))) {
         _currentIndex = i;
         print('Home route match found: $navRoute at index $i');
         break;
       }
       
-      // Handle developer default route - redirect to listings
-      if (currentRoute == '/dev' || (currentRoute.startsWith('/dev') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/analytics'))) {
+      // Handle developer default route - redirect to listings (but NOT for negotiations)
+      if (currentRoute == '/dev' || (currentRoute.startsWith('/dev') && !currentRoute.contains('/browse') && !currentRoute.contains('/profile') && !currentRoute.contains('/analytics') && !currentRoute.contains('/negotiations'))) {
         // Default to listings for developers
         if (navRoute == '/dev/browse') {
           _currentIndex = i;
@@ -225,7 +216,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute.contains('/agreement/')) return 'Agreement';
     if (currentRoute.contains('/land/add')) return 'Add Listing';
     if (currentRoute.contains('/notifications')) return 'Notifications';
-    if (currentRoute.contains('/neg')) return 'Negotiations';
+    if (currentRoute.contains('/neg') || currentRoute.contains('/negotiations')) return 'Negotiations';
     if (currentRoute == '/dev') return 'Listings'; // Redirected to browse
     if (currentRoute == '/buyer') return 'Buyer Dashboard';
     if (currentRoute == '/seller') return 'Seller Dashboard';
@@ -233,7 +224,8 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute == '/admin/verification') return '';
     if (currentRoute == '/admin/settings') return '';
     if (currentRoute == '/admin/contract-queue') return '';
-    if (currentRoute.contains('/browse')) return 'Listings';
+    if (currentRoute.contains('/dev/browse')) return 'Listings';
+    if (currentRoute.contains('/seller/browse')) return 'Developers';
     if (currentRoute.contains('/analytics')) return 'Analytics';
     return AppConfig.appName;
   }
@@ -366,7 +358,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
           NavigationItem(
             icon: Icons.chat,
             label: 'Negotiations',
-            route: '/neg',
+            route: '/dev/negotiations',
           ),
           NavigationItem(
             icon: Icons.notifications,
@@ -417,14 +409,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             route: '/seller',
           ),
           NavigationItem(
-            icon: Icons.add,
-            label: 'Add Listing',
-            route: '/seller/land/add',
+            icon: Icons.search,
+            label: 'Browse',
+            route: '/seller/browse',
           ),
           NavigationItem(
             icon: Icons.chat,
             label: 'Negotiations',
-            route: '/neg',
+            route: '/seller/negotiations',
           ),
           NavigationItem(
             icon: Icons.notifications,

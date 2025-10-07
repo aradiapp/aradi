@@ -61,7 +61,7 @@ class NegotiationService {
       );
 
       // Add message to negotiation
-      await _firestore
+      final docRef = await _firestore
           .collection('negotiations')
           .doc(negotiationId)
           .collection('messages')
@@ -75,7 +75,7 @@ class NegotiationService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      return message.id;
+      return docRef.id;
     } catch (e) {
       print('Error sending message: $e');
       throw Exception('Failed to send message: $e');
@@ -90,13 +90,11 @@ class NegotiationService {
       if (userRole == 'developer') {
         query = _firestore
             .collection('negotiations')
-            .where('developerId', isEqualTo: userId)
-            .orderBy('updatedAt', descending: true);
+            .where('developerId', isEqualTo: userId);
       } else if (userRole == 'seller') {
         query = _firestore
             .collection('negotiations')
-            .where('sellerId', isEqualTo: userId)
-            .orderBy('updatedAt', descending: true);
+            .where('sellerId', isEqualTo: userId);
       } else {
         throw Exception('Invalid user role: $userRole');
       }
@@ -105,9 +103,31 @@ class NegotiationService {
       
       final negotiations = <Negotiation>[];
       for (final doc in querySnapshot.docs) {
-        final negotiation = Negotiation.fromJson(doc.data() as Map<String, dynamic>);
-        negotiations.add(negotiation);
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Add the document ID to the data
+        final negotiation = Negotiation.fromJson(data);
+        
+        // Get messages for this negotiation
+        final messagesQuery = await _firestore
+            .collection('negotiations')
+            .doc(doc.id)
+            .collection('messages')
+            .orderBy('createdAt', descending: false)
+            .get();
+
+        final messages = messagesQuery.docs
+            .map((messageDoc) {
+              final messageData = messageDoc.data();
+              messageData['id'] = messageDoc.id; // Add the document ID to the message data
+              return NegotiationMessage.fromJson(messageData);
+            })
+            .toList();
+
+        negotiations.add(negotiation.copyWith(messages: messages));
       }
+
+      // Sort by updatedAt descending on the client side
+      negotiations.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
       return negotiations;
     } catch (e) {
@@ -128,7 +148,9 @@ class NegotiationService {
         return null;
       }
 
-      final negotiation = Negotiation.fromJson(negotiationDoc.data()!);
+      final data = negotiationDoc.data()!;
+      data['id'] = negotiationDoc.id; // Add the document ID to the data
+      final negotiation = Negotiation.fromJson(data);
 
       // Get messages
       final messagesQuery = await _firestore
@@ -139,7 +161,11 @@ class NegotiationService {
           .get();
 
       final messages = messagesQuery.docs
-          .map((doc) => NegotiationMessage.fromJson(doc.data()))
+          .map((doc) {
+            final messageData = doc.data();
+            messageData['id'] = doc.id; // Add the document ID to the message data
+            return NegotiationMessage.fromJson(messageData);
+          })
           .toList();
 
       return negotiation.copyWith(messages: messages);

@@ -34,8 +34,9 @@ class DealService {
 
       final dealType = isJV ? DealType.jv : DealType.buy;
       
-      // Extract offer amount from the first message
+      // Extract offer amount from negotiation messages
       double? offerAmount;
+      double? finalAgreedPrice;
       double? sellerPercentage;
       double? developerPercentage;
       
@@ -48,28 +49,76 @@ class DealService {
         print('  Message $i: ${negotiation.messages[i].content}');
       }
       
+      // Find the initial offer message
       final offerMessage = negotiation.messages.firstWhere(
         (msg) => msg.content.contains('Made an offer of AED') || msg.content.contains('JV Proposal:'),
         orElse: () => negotiation.messages.first,
       );
 
       if (isJV) {
-        // Extract JV percentages
-        final jvRegex = RegExp(r'(\d+)% Landowner.*?(\d+)% Developer');
-        final jvMatch = jvRegex.firstMatch(offerMessage.content);
-        if (jvMatch != null) {
-          sellerPercentage = double.parse(jvMatch.group(1)!);
-          developerPercentage = double.parse(jvMatch.group(2)!);
+        // For JV deals, look for the final agreed percentages in all messages
+        double? finalSellerPercentage;
+        double? finalDeveloperPercentage;
+        
+        // Check all messages for JV percentages (in reverse order to get the latest)
+        for (final message in negotiation.messages.reversed) {
+          // First check for JV Counter (most recent negotiation)
+          final jvCounterRegex = RegExp(r'JV Counter:\s*(\d+)%\s*Landowner.*?(\d+)%\s*Developer');
+          final jvCounterMatch = jvCounterRegex.firstMatch(message.content);
+          if (jvCounterMatch != null) {
+            finalSellerPercentage = double.parse(jvCounterMatch.group(1)!);
+            finalDeveloperPercentage = double.parse(jvCounterMatch.group(2)!);
+            break; // Found the most recent JV counter percentages
+          }
+          
+          // If no JV Counter found, check for JV Proposal
+          final jvProposalRegex = RegExp(r'JV Proposal:\s*(\d+)%\s*Landowner.*?(\d+)%\s*Developer');
+          final jvProposalMatch = jvProposalRegex.firstMatch(message.content);
+          if (jvProposalMatch != null) {
+            finalSellerPercentage = double.parse(jvProposalMatch.group(1)!);
+            finalDeveloperPercentage = double.parse(jvProposalMatch.group(2)!);
+            break; // Found JV proposal percentages
+          }
         }
+        
+        // Fallback to initial offer if no percentages found
+        if (finalSellerPercentage == null || finalDeveloperPercentage == null) {
+          final jvRegex = RegExp(r'JV Proposal:\s*(\d+)%\s*Landowner.*?(\d+)%\s*Developer');
+          final jvMatch = jvRegex.firstMatch(offerMessage.content);
+          if (jvMatch != null) {
+            finalSellerPercentage = double.parse(jvMatch.group(1)!);
+            finalDeveloperPercentage = double.parse(jvMatch.group(2)!);
+          }
+        }
+        
+        sellerPercentage = finalSellerPercentage;
+        developerPercentage = finalDeveloperPercentage;
         offerAmount = listing.askingPrice; // For JV, use asking price as reference
+        finalAgreedPrice = listing.askingPrice; // For JV, final price is the asking price
       } else {
-        // Extract buy offer amount
+        // Extract buy offer amount from initial offer
         final amountRegex = RegExp(r'Made an offer of AED ([\d.,]+[KM]?)');
         final amountMatch = amountRegex.firstMatch(offerMessage.content);
         if (amountMatch != null) {
           final amountStr = amountMatch.group(1)!;
           offerAmount = _parseFormattedPrice(amountStr);
         }
+        
+        // Look for counter offers to find the final agreed price
+        // Check all messages for counter offers (messages containing "AED" amounts)
+        double? lastCounterOffer;
+        for (final message in negotiation.messages.reversed) {
+          final counterRegex = RegExp(r'AED ([\d.,]+[KM]?)');
+          final counterMatch = counterRegex.firstMatch(message.content);
+          if (counterMatch != null) {
+            final counterStr = counterMatch.group(1)!;
+            lastCounterOffer = _parseFormattedPrice(counterStr);
+            break; // Found the most recent counter offer
+          }
+        }
+        
+        // Use the last counter offer as final price, or initial offer if no counter
+        finalAgreedPrice = lastCounterOffer ?? offerAmount;
       }
 
       final deal = Deal(
@@ -82,7 +131,7 @@ class DealService {
         buyerName: negotiation.developerName,
         developerId: negotiation.developerId,
         developerName: negotiation.developerName,
-        finalPrice: offerAmount ?? listing.askingPrice,
+        finalPrice: finalAgreedPrice ?? offerAmount ?? listing.askingPrice,
         offerAmount: offerAmount,
         askingPrice: listing.askingPrice,
         type: dealType,
@@ -246,12 +295,17 @@ class DealService {
     }
   }
 
-  /// Check if all required documents are uploaded for a buy deal
+  /// Check if all required documents are uploaded for a deal
   bool hasAllRequiredDocuments(Deal deal) {
-    if (deal.type != DealType.buy) return true; // JV deals don't need documents
-    
-    final requiredDocs = ['Contract A', 'Contract B', 'Contract F'];
-    return requiredDocs.every((doc) => deal.contractDocuments.containsKey(doc));
+    if (deal.type == DealType.buy) {
+      // Buy deals need Contract A, B, F
+      final requiredDocs = ['Contract A', 'Contract B', 'Contract F'];
+      return requiredDocs.every((doc) => deal.contractDocuments.containsKey(doc));
+    } else if (deal.type == DealType.jv) {
+      // JV deals need JV Agreement
+      return deal.contractDocuments.containsKey('JV Agreement');
+    }
+    return true;
   }
 
   /// Get deal by ID
@@ -272,6 +326,7 @@ class DealService {
       throw Exception('Failed to get deal: $e');
     }
   }
+
 
   /// Parse formatted price string (e.g., "2.5M" -> 2500000)
   double _parseFormattedPrice(String priceStr) {

@@ -21,7 +21,10 @@ class AdminVerificationPage extends ConsumerStatefulWidget {
 
 class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
   List<LandListing> _pendingListings = [];
+  List<LandListing> _filteredListings = [];
   bool _isLoading = true;
+  ListingStatus? _selectedFilter;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -42,6 +45,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
         _pendingListings = listings;
         _isLoading = false;
       });
+      _applyFilter();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -68,6 +72,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
         setState(() {
           _pendingListings.remove(listing);
         });
+        _applyFilter();
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -140,6 +145,29 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
     );
   }
 
+  void _applyFilter() {
+    setState(() {
+      if (_selectedFilter == null) {
+        _filteredListings = _pendingListings;
+      } else {
+        _filteredListings = _pendingListings.where((listing) => listing.status == _selectedFilter).toList();
+      }
+    });
+  }
+
+  void _onFilterChanged(ListingStatus? filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    _applyFilter();
+  }
+
+  void _toggleFilters() {
+    setState(() {
+      _showFilters = !_showFilters;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,40 +175,64 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
         title: const Text('Listings Review'),
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: _toggleFilters,
+            icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
+          ),
+        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildListingsTab(),
+      body: Column(
+        children: [
+          if (_showFilters) _buildFilters(),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildListingsTab(),
+          ),
+        ],
+      ),
     );
   }
 
 
   Widget _buildListingsTab() {
-    if (_pendingListings.isEmpty) {
-      return const Center(
+    if (_filteredListings.isEmpty) {
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.check_circle_outline,
+              _selectedFilter == null ? Icons.check_circle_outline : Icons.filter_list_off,
               size: 64,
-              color: Colors.green,
+              color: _selectedFilter == null ? Colors.green : AppTheme.textSecondary,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
-              'No pending listings',
-              style: TextStyle(
+              _selectedFilter == null 
+                  ? 'No pending listings'
+                  : 'No ${_selectedFilter!.toString().split('.').last} listings found',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'All listings have been processed',
-              style: TextStyle(
+              _selectedFilter == null 
+                  ? 'All listings have been processed'
+                  : 'Try selecting a different filter',
+              style: const TextStyle(
                 color: Colors.grey,
               ),
             ),
+            if (_selectedFilter != null) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => _onFilterChanged(null),
+                child: const Text('Show All'),
+              ),
+            ],
           ],
         ),
       );
@@ -188,9 +240,9 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: _pendingListings.length,
+      itemCount: _filteredListings.length,
       itemBuilder: (context, index) {
-        final listing = _pendingListings[index];
+        final listing = _filteredListings[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
           child: Padding(
@@ -922,6 +974,85 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
       return location.split(',')[1].trim();
     }
     return location;
+  }
+
+  Widget _buildFilters() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Filter by Status:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilterChip(
+                label: const Text('All'),
+                selected: _selectedFilter == null,
+                onSelected: (selected) {
+                  if (selected) {
+                    _onFilterChanged(null);
+                  }
+                },
+                selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                checkmarkColor: AppTheme.primaryColor,
+              ),
+              FilterChip(
+                label: const Text('Pending'),
+                selected: _selectedFilter == ListingStatus.pending_verification,
+                onSelected: (selected) {
+                  if (selected) {
+                    _onFilterChanged(ListingStatus.pending_verification);
+                  }
+                },
+                selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                checkmarkColor: AppTheme.primaryColor,
+              ),
+              FilterChip(
+                label: const Text('Active'),
+                selected: _selectedFilter == ListingStatus.active,
+                onSelected: (selected) {
+                  if (selected) {
+                    _onFilterChanged(ListingStatus.active);
+                  }
+                },
+                selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                checkmarkColor: AppTheme.primaryColor,
+              ),
+              FilterChip(
+                label: const Text('Rejected'),
+                selected: _selectedFilter == ListingStatus.rejected,
+                onSelected: (selected) {
+                  if (selected) {
+                    _onFilterChanged(ListingStatus.rejected);
+                  }
+                },
+                selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                checkmarkColor: AppTheme.primaryColor,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
 }

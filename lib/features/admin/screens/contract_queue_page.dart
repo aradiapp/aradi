@@ -53,13 +53,13 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
     } catch (e) {
       print('Error loading deals: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
             content: Text('Error loading deals: $e'),
             backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
+      ),
+    );
+  }
     } finally {
       if (mounted) {
     setState(() {
@@ -328,7 +328,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'AED ${_formatPrice(deal.offerAmount ?? deal.finalPrice)}',
+                    'AED ${_formatPrice(deal.finalPrice)}',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: AppTheme.successColor,
                       fontWeight: FontWeight.bold,
@@ -640,6 +640,7 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
     'Contract A': false,
     'Contract B': false,
     'Contract F': false,
+    'JV Agreement': false,
   };
   
   // Local state to track the current deal data
@@ -665,8 +666,8 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
       ),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
+          maxWidth: MediaQuery.of(context).size.width * 0.95,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -738,7 +739,68 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
 
                     // Listing Details
                     _buildSectionHeader('Listing Details'),
-                    const Text('Listing details will be shown here'),
+                    FutureBuilder<LandListing?>(
+                      future: _landListingService.getListingById(_currentDeal.listingId),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return const Text('Error loading listing details');
+                        }
+                        
+                        final listing = snapshot.data!;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDetailRow('Emirate', listing.emirate),
+                            _buildDetailRow('City', listing.city),
+                            _buildDetailRow('Area', listing.area),
+                            _buildDetailRow('Land Size', '${listing.landSize} sqm'),
+                            _buildDetailRow('GFA', '${listing.gfa} sqm'),
+                            _buildDetailRow('Ownership Type', listing.ownershipType.toString().split('.').last),
+                            _buildDetailRow('Permissions', listing.permissions.map((p) => p.toString().split('.').last).join(', ')),
+                            if (listing.buildingSpecs != null)
+                              _buildDetailRow('Building Specs', listing.buildingSpecs!),
+                            if (listing.photos.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              const Text('Photos:', style: TextStyle(fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                height: 100,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: listing.photos.length,
+                                  itemBuilder: (context, index) {
+                                    return Container(
+                                      margin: const EdgeInsets.only(right: 8),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          listing.photos[index],
+                                          width: 100,
+                                          height: 100,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Container(
+                                              width: 100,
+                                              height: 100,
+                                              color: Colors.grey[300],
+                                              child: const Icon(Icons.image_not_supported),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
                     
                     const SizedBox(height: 20),
                     
@@ -762,12 +824,15 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
                     
                     const SizedBox(height: 20),
                     
-                    // Contract Documents (for buy deals)
+                    // Contract Documents
                     if (_currentDeal.type == DealType.buy) ...[
                       _buildSectionHeader('Contract Documents'),
                       _buildDocumentUpload('Contract A', 'Contract A'),
                       _buildDocumentUpload('Contract B', 'Contract B'),
                       _buildDocumentUpload('Contract F', 'Contract F'),
+                    ] else if (_currentDeal.type == DealType.jv) ...[
+                      _buildSectionHeader('JV Agreement'),
+                      _buildDocumentUpload('JV Agreement', 'JV Agreement'),
                     ],
                     
                     const SizedBox(height: 20),
@@ -790,49 +855,64 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
             ),
 
             // Actions
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Close'),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
                 ),
-                const SizedBox(width: 12),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+              children: [
                   if (_currentDeal.status == DealStatus.pending) ...[
-                    ElevatedButton(
-                      onPressed: () => _showCancelDialog(),
+                    // Action buttons in a column for better mobile layout
+                    SizedBox(
+                      width: double.infinity,
+                  child: ElevatedButton(
+                        onPressed: () => _showCancelDialog(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.errorColor,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Cancel'),
+                          backgroundColor: AppTheme.errorColor,
+                          foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                const SizedBox(width: 8),
-                    if (_currentDeal.type == DealType.buy) ...[
-                      ElevatedButton(
+                        child: const Text('Cancel Deal'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Complete button for both buy and JV deals
+                    SizedBox(
+                      width: double.infinity,
+                  child: ElevatedButton(
                         onPressed: _dealService.hasAllRequiredDocuments(_currentDeal) 
                             ? () => widget.onAction('Complete')
                             : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.successColor,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Complete'),
-                      ),
-                    ] else ...[
-                      ElevatedButton(
-                        onPressed: () => widget.onAction('Complete'),
-                    style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.successColor,
                           foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                        child: const Text('Complete'),
-                ),
-                    ],
+                        child: Text(_currentDeal.type == DealType.jv 
+                            ? 'Complete JV Deal' 
+                            : 'Complete Deal'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                   ],
-              ],
+                  // Close button
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

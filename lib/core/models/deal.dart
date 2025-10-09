@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum DealStatus { pending, completed, cancelled }
+enum DealType { buy, jv }
 
 class Deal {
   final String id;
@@ -14,6 +15,10 @@ class Deal {
   final String? developerName;
   final double finalPrice;
   final double? offerAmount; // Original offer amount
+  final double askingPrice; // Original asking price from listing
+  final DealType type; // buy or jv
+  final double? sellerPercentage; // For JV deals
+  final double? developerPercentage; // For JV deals
   final DealStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -22,6 +27,8 @@ class Deal {
   final DateTime? cancelledAt; // When the deal was cancelled
   final String? completedBy; // Admin/Broker ID who marked it complete
   final String? notes;
+  final String? rejectionReason; // Reason for cancellation
+  final Map<String, String> contractDocuments; // Contract A, B, F URLs
 
   const Deal({
     required this.id,
@@ -35,6 +42,10 @@ class Deal {
     this.developerName,
     required this.finalPrice,
     this.offerAmount,
+    required this.askingPrice,
+    required this.type,
+    this.sellerPercentage,
+    this.developerPercentage,
     this.status = DealStatus.pending,
     required this.createdAt,
     required this.updatedAt,
@@ -43,6 +54,8 @@ class Deal {
     this.cancelledAt,
     this.completedBy,
     this.notes,
+    this.rejectionReason,
+    this.contractDocuments = const {},
   });
 
   factory Deal.fromJson(Map<String, dynamic> json) {
@@ -59,6 +72,17 @@ class Deal {
       finalPrice: (json['finalPrice'] as num).toDouble(),
       offerAmount: json['offerAmount'] != null
           ? (json['offerAmount'] as num).toDouble()
+          : null,
+      askingPrice: (json['askingPrice'] as num).toDouble(),
+      type: DealType.values.firstWhere(
+        (e) => e.toString().split('.').last == json['type'],
+        orElse: () => DealType.buy,
+      ),
+      sellerPercentage: json['sellerPercentage'] != null
+          ? (json['sellerPercentage'] as num).toDouble()
+          : null,
+      developerPercentage: json['developerPercentage'] != null
+          ? (json['developerPercentage'] as num).toDouble()
           : null,
       status: DealStatus.values.firstWhere(
         (e) => e.toString().split('.').last == json['status'],
@@ -77,6 +101,8 @@ class Deal {
           : null,
       completedBy: json['completedBy'] as String?,
       notes: json['notes'] as String?,
+      rejectionReason: json['rejectionReason'] as String?,
+      contractDocuments: Map<String, String>.from(json['contractDocuments'] ?? {}),
     );
   }
 
@@ -93,6 +119,10 @@ class Deal {
       'developerName': developerName,
       'finalPrice': finalPrice,
       'offerAmount': offerAmount,
+      'askingPrice': askingPrice,
+      'type': type.toString().split('.').last,
+      'sellerPercentage': sellerPercentage,
+      'developerPercentage': developerPercentage,
       'status': status.toString().split('.').last,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -101,6 +131,8 @@ class Deal {
       'cancelledAt': cancelledAt != null ? Timestamp.fromDate(cancelledAt!) : null,
       'completedBy': completedBy,
       'notes': notes,
+      'rejectionReason': rejectionReason,
+      'contractDocuments': contractDocuments,
     };
   }
 
@@ -116,6 +148,10 @@ class Deal {
     String? developerName,
     double? finalPrice,
     double? offerAmount,
+    double? askingPrice,
+    DealType? type,
+    double? sellerPercentage,
+    double? developerPercentage,
     DealStatus? status,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -124,6 +160,8 @@ class Deal {
     DateTime? cancelledAt,
     String? completedBy,
     String? notes,
+    String? rejectionReason,
+    Map<String, String>? contractDocuments,
   }) {
     return Deal(
       id: id ?? this.id,
@@ -137,6 +175,10 @@ class Deal {
       developerName: developerName ?? this.developerName,
       finalPrice: finalPrice ?? this.finalPrice,
       offerAmount: offerAmount ?? this.offerAmount,
+      askingPrice: askingPrice ?? this.askingPrice,
+      type: type ?? this.type,
+      sellerPercentage: sellerPercentage ?? this.sellerPercentage,
+      developerPercentage: developerPercentage ?? this.developerPercentage,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -145,6 +187,8 @@ class Deal {
       cancelledAt: cancelledAt ?? this.cancelledAt,
       completedBy: completedBy ?? this.completedBy,
       notes: notes ?? this.notes,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      contractDocuments: contractDocuments ?? this.contractDocuments,
     );
   }
 

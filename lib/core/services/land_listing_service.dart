@@ -347,4 +347,22 @@ class LandListingService {
       throw Exception('Failed to mark listing as sold: $e');
     }
   }
+
+  /// Reactivate a listing when a deal is cancelled
+  Future<void> reactivateListing(String listingId) async {
+    try {
+      await _firestore
+          .collection('land_listings')
+          .doc(listingId)
+          .update({
+        'isActive': true,
+        'status': 'active',
+        'soldAt': FieldValue.delete(), // Remove soldAt field
+      });
+      print('Listing $listingId reactivated');
+    } catch (e) {
+      print('Error reactivating listing: $e');
+      throw Exception('Failed to reactivate listing: $e');
+    }
+  }
 }

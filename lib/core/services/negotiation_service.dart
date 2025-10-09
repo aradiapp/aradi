@@ -82,6 +82,47 @@ class NegotiationService {
     }
   }
 
+  /// Get all negotiations (for admin use)
+  Future<List<Negotiation>> getAllNegotiations() async {
+    try {
+      final snapshot = await _firestore
+          .collection('negotiations')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final negotiations = <Negotiation>[];
+      
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        final negotiation = Negotiation.fromJson(data);
+        
+        // Get messages for this negotiation
+        final messagesQuery = await _firestore
+            .collection('negotiations')
+            .doc(doc.id)
+            .collection('messages')
+            .orderBy('createdAt', descending: false)
+            .get();
+        
+        final messages = messagesQuery.docs
+            .map((messageDoc) {
+              final messageData = messageDoc.data();
+              messageData['id'] = messageDoc.id;
+              return NegotiationMessage.fromJson(messageData);
+            })
+            .toList();
+        
+        negotiations.add(negotiation.copyWith(messages: messages));
+      }
+
+      return negotiations;
+    } catch (e) {
+      print('Error getting all negotiations: $e');
+      throw Exception('Failed to get negotiations: $e');
+    }
+  }
+
   /// Get negotiations for a user
   Future<List<Negotiation>> getNegotiationsForUser(String userId, String userRole) async {
     try {
@@ -216,6 +257,9 @@ class NegotiationService {
       case OfferStatus.sent:
         content = 'Response sent';
         break;
+      case OfferStatus.completed:
+        content = 'Deal completed';
+        break;
     }
 
     if (notes != null && notes.isNotEmpty) {
@@ -277,6 +321,8 @@ class NegotiationService {
         return 1; // Low priority
       case OfferStatus.rejected:
         return 1; // Low priority
+      case OfferStatus.completed:
+        return 0; // No priority - completed
     }
   }
 
@@ -299,6 +345,8 @@ class NegotiationService {
         return 'No response needed';
       case OfferStatus.rejected:
         return 'No response needed';
+      case OfferStatus.completed:
+        return 'Deal completed';
     }
   }
 

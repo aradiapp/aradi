@@ -444,18 +444,20 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
   }
 
   Widget _buildActionButtons(LandListing listing) {
+    final bool isDisabled = _hasAcceptedNegotiation || listing.status == ListingStatus.sold;
+    
     return Row(
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _hasAcceptedNegotiation ? null : () {
+            onPressed: isDisabled ? null : () {
               final editUrl = '/seller/listing/${listing.id}/edit';
               context.go(editUrl);
             },
             icon: const Icon(Icons.edit),
             label: const Text('Edit Listing'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _hasAcceptedNegotiation ? Colors.grey : AppTheme.primaryColor,
+              backgroundColor: isDisabled ? Colors.grey : AppTheme.primaryColor,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -464,11 +466,11 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
         const SizedBox(width: 16),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _hasAcceptedNegotiation ? null : () => _showDeleteDialog(listing),
+            onPressed: isDisabled ? null : () => _showDeleteDialog(listing),
             icon: const Icon(Icons.delete),
             label: const Text('Delete'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _hasAcceptedNegotiation ? Colors.grey : Colors.red,
+              backgroundColor: isDisabled ? Colors.grey : Colors.red,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
@@ -660,8 +662,8 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
           _buildStatusCard(listing),
           const SizedBox(height: 16),
           
-          // Status message for accepted negotiations
-          if (_hasAcceptedNegotiation) ...[
+          // Status message for accepted negotiations or sold listings
+          if (_hasAcceptedNegotiation || listing.status == ListingStatus.sold) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -675,7 +677,9 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'This listing has an accepted offer. You cannot edit or delete it.',
+                      listing.status == ListingStatus.sold 
+                          ? 'This listing has been sold. You cannot edit or delete it.'
+                          : 'This listing has an accepted offer. You cannot edit or delete it.',
                       style: TextStyle(
                         color: Colors.orange[800],
                         fontWeight: FontWeight.w500,
@@ -708,7 +712,7 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
           icon: const Icon(Icons.arrow_back),
         ),
         actions: [
-          if (_listing != null && !_hasAcceptedNegotiation)
+          if (_listing != null && !_hasAcceptedNegotiation && _listing!.status != ListingStatus.sold)
             IconButton(
               onPressed: () {
                 final editUrl = '/seller/listing/${_listing!.id}/edit';

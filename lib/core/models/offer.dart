@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum OfferType { buy, jv, both }
-enum OfferStatus { sent, pending, countered, accepted, rejected }
+enum OfferStatus { sent, pending, countered, accepted, rejected, completed }
 
 class JVProposal {
   final double sellerPercentage;

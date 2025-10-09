@@ -102,26 +102,27 @@ class _SellerHomePageState extends ConsumerState<SellerHomePage> {
       final negotiations = await _negotiationService.getNegotiationsForUser(currentUser.id, 'seller');
       
       for (final listing in _myListings) {
-        final listingNegotiations = negotiations.where((n) => n.listingId == listing.id).toList();
+        // Check if listing has accepted negotiations (same logic as listing details page)
+        final hasAccepted = negotiations.any((n) => n.listingId == listing.id && n.status.toString().contains('accepted'));
         
-        if (listingNegotiations.isNotEmpty) {
-          // Check if any negotiation is accepted
-          final hasAccepted = listingNegotiations.any((n) => n.status.toString().contains('accepted'));
+        if (hasAccepted) {
+          // Check if it's a JV proposal
+          final acceptedNegotiation = negotiations.firstWhere((n) => n.listingId == listing.id && n.status.toString().contains('accepted'));
+          final isJV = acceptedNegotiation.messages.any((message) => 
+            message.content.contains('JV Proposal') || 
+            message.content.contains('% Landowner') ||
+            message.content.contains('% Developer'));
           
-          if (hasAccepted) {
-            // Check if it's a JV proposal
-            final acceptedNegotiation = listingNegotiations.firstWhere((n) => n.status.toString().contains('accepted'));
-            final isJV = acceptedNegotiation.messages.any((message) => 
-              message.content.contains('JV Proposal') || 
-              message.content.contains('% Landowner') ||
-              message.content.contains('% Developer'));
-            
-            _listingNegotiationStatus[listing.id] = isJV ? 'Admin will contact you' : 'Pending Admin';
-          } else {
-            _listingNegotiationStatus[listing.id] = 'Active';
-          }
+          _listingNegotiationStatus[listing.id] = isJV ? 'Admin will contact you' : 'Pending Admin';
         } else {
-          _listingNegotiationStatus[listing.id] = 'Active';
+          // No accepted negotiations, use normal listing status
+          if (listing.status == ListingStatus.sold) {
+            _listingNegotiationStatus[listing.id] = 'Sold';
+          } else if (listing.isVerified) {
+            _listingNegotiationStatus[listing.id] = 'Active';
+          } else {
+            _listingNegotiationStatus[listing.id] = 'Pending';
+          }
         }
       }
     } catch (e) {
@@ -657,14 +658,38 @@ class _ListingCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: Stack(
+        children: [
+          // Background image
+          if (listing.photoUrls.isNotEmpty)
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                image: DecorationImage(
+                  image: NetworkImage(listing.photoUrls.first),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          // Semi-transparent overlay
+          if (listing.photoUrls.isNotEmpty)
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.black.withOpacity(0.3),
+              ),
+            ),
+          // Content
+          InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Row(
                 children: [
                   Expanded(
@@ -675,13 +700,13 @@ class _ListingCard extends StatelessWidget {
                           '${listing.emirate}, ${listing.city}',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                            color: listing.photoUrls.isNotEmpty ? Colors.white : AppTheme.textPrimary,
                           ),
                         ),
                         Text(
                           listing.area,
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textSecondary,
+                            color: listing.photoUrls.isNotEmpty ? Colors.white.withOpacity(0.9) : AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -711,6 +736,7 @@ class _ListingCard extends StatelessWidget {
                       icon: Icons.square_foot,
                       label: 'Land Size',
                       value: '${listing.landSize.toStringAsFixed(0)} sqm',
+                      textColor: listing.photoUrls.isNotEmpty ? Colors.white : null,
                     ),
                   ),
                   Expanded(
@@ -718,6 +744,7 @@ class _ListingCard extends StatelessWidget {
                       icon: Icons.attach_money,
                       label: 'Price',
                       value: 'AED ${(listing.askingPrice / 1000000).toStringAsFixed(2)}M',
+                      textColor: listing.photoUrls.isNotEmpty ? Colors.white : null,
                     ),
                   ),
                   Expanded(
@@ -725,6 +752,7 @@ class _ListingCard extends StatelessWidget {
                       icon: Icons.mail,
                       label: 'Offers',
                       value: offerCount.toString(),
+                      textColor: listing.photoUrls.isNotEmpty ? Colors.white : null,
                     ),
                   ),
                 ],
@@ -732,6 +760,8 @@ class _ListingCard extends StatelessWidget {
             ],
           ),
         ),
+        ),
+        ],
       ),
     );
   }
@@ -740,6 +770,8 @@ class _ListingCard extends StatelessWidget {
     switch (status) {
       case 'Active':
         return AppTheme.successColor.withOpacity(0.1);
+      case 'Pending':
+        return AppTheme.warningColor.withOpacity(0.1);
       case 'Pending Admin':
         return AppTheme.primaryColor.withOpacity(0.1);
       case 'Admin will contact you':
@@ -755,6 +787,8 @@ class _ListingCard extends StatelessWidget {
     switch (status) {
       case 'Active':
         return AppTheme.successColor;
+      case 'Pending':
+        return AppTheme.warningColor;
       case 'Pending Admin':
         return AppTheme.primaryColor;
       case 'Admin will contact you':
@@ -863,6 +897,8 @@ class _OfferCard extends StatelessWidget {
         return AppTheme.successColor;
       case OfferStatus.rejected:
         return AppTheme.errorColor;
+      case OfferStatus.completed:
+        return AppTheme.successColor;
     }
   }
 }
@@ -871,11 +907,13 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final Color? textColor;
 
   const _InfoRow({
     required this.icon,
     required this.label,
     required this.value,
+    this.textColor,
   });
 
   @override
@@ -885,20 +923,20 @@ class _InfoRow extends StatelessWidget {
         Icon(
           icon,
           size: 20,
-          color: AppTheme.textSecondary,
+          color: textColor ?? AppTheme.textSecondary,
         ),
         const SizedBox(height: 4),
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: AppTheme.textSecondary,
+            color: textColor ?? AppTheme.textSecondary,
           ),
         ),
         Text(
           value,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            color: textColor ?? AppTheme.textPrimary,
           ),
         ),
       ],

@@ -29,6 +29,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   bool _isLoading = true;
   bool _isSubmittingOffer = false;
   bool _isSubmittingJV = false;
+  bool _isProcessingOffer = false;
   bool _hasActiveOffer = false;
   bool _hasActiveJV = false;
   bool _isCheckingOffers = false;
@@ -886,25 +887,28 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                         ),
                       )
                     : _hasActiveJV
-                        ? ElevatedButton.icon(
-                            onPressed: _isSubmittingJV ? null : _cancelJVOffer,
-                            icon: _isSubmittingJV 
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.cancel),
-                            label: Text(_isSubmittingJV ? 'Cancelling...' : 'Cancel JV'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.errorColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        ? AbsorbPointer(
+                            absorbing: _isSubmittingJV,
+                            child: ElevatedButton.icon(
+                              onPressed: _isSubmittingJV ? null : _cancelJVOffer,
+                              icon: _isSubmittingJV 
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.cancel),
+                              label: Text(_isSubmittingJV ? 'Cancelling...' : 'Cancel JV'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.errorColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           )
@@ -937,16 +941,20 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   }
 
   void _showOfferDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => _buildOfferDialog(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildOfferBottomSheet(),
     );
   }
 
   void _showJVDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => _buildJVDialog(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildJVBottomSheet(),
     );
   }
 
@@ -1025,11 +1033,11 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   }
 
   Future<void> _cancelJVOffer() async {
+    setState(() {
+      _isSubmittingJV = true;
+    });
+    
     try {
-      setState(() {
-        _isSubmittingJV = true;
-      });
-      
       final authService = ref.read(authServiceProvider);
       final currentUser = await authService.getCurrentUser();
       
@@ -1098,18 +1106,53 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     }
   }
 
-  Widget _buildOfferDialog() {
+  Widget _buildOfferBottomSheet() {
     final askingPrice = _listing?.askingPrice ?? 0;
     final minPrice = askingPrice * 0.8; // 20% below asking price
     final maxPrice = askingPrice * 1.2; // 20% above asking price
     
-    return AlertDialog(
-      title: const Text('Make Offer'),
-      content: SingleChildScrollView(
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'Make Offer',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Info text
             Text(
               'Offer must be within ±20% of asking price',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -1131,7 +1174,9 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            
+            // Input field
             TextField(
               controller: _offerAmountController,
               keyboardType: TextInputType.number,
@@ -1142,42 +1187,165 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 hintText: 'Enter your offer amount',
               ),
             ),
+            const SizedBox(height: 24),
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isSubmittingOffer ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AbsorbPointer(
+                    absorbing: _isSubmittingOffer || _isProcessingOffer,
+                    child: ElevatedButton(
+                      onPressed: (_isSubmittingOffer || _isProcessingOffer) ? null : () {
+                        if (_isProcessingOffer) return;
+                        
+                        // Validate offer amount first
+                        if (_offerAmountController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter an offer amount'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final offerAmount = double.tryParse(_offerAmountController.text.trim());
+                        if (offerAmount == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter a valid amount'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final askingPrice = _listing?.askingPrice ?? 0;
+                        final minPrice = askingPrice * 0.8;
+                        final maxPrice = askingPrice * 1.2;
+                        
+                        if (offerAmount < minPrice || offerAmount > maxPrice) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Invalid Offer'),
+                              content: Text('Offer must be between AED ${_formatPrice(minPrice)} and AED ${_formatPrice(maxPrice)}'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Show confirmation dialog
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Confirm Offer'),
+                            content: Text('Are you sure you want to submit an offer of AED ${_formatPrice(offerAmount)}?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // Close confirmation dialog
+                                  Navigator.pop(context); // Close bottom sheet
+                                  setState(() {
+                                    _isProcessingOffer = true;
+                                    _isSubmittingOffer = true;
+                                  });
+                                  _submitOffer();
+                                },
+                                child: const Text('Confirm'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: _isSubmittingOffer
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Submit Offer'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _submitOffer,
-          child: _isSubmittingOffer
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Submit Offer'),
-        ),
-      ],
     );
   }
 
-  Widget _buildJVDialog() {
-    return AlertDialog(
-      title: const Text('Joint Venture Proposal'),
-      content: SingleChildScrollView(
+  Widget _buildJVBottomSheet() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Title
+            Text(
+              'Joint Venture Proposal',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Info text
             Text(
               'Partnership percentages must sum to 100%',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppTheme.textSecondary,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            
+            // Input fields
             TextField(
               controller: _jvEquityController,
               keyboardType: TextInputType.number,
@@ -1215,58 +1383,112 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
                 );
               },
             ),
+            const SizedBox(height: 24),
+            
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isSubmittingJV ? null : () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: AbsorbPointer(
+                    absorbing: _isSubmittingJV,
+                    child: ElevatedButton(
+                      onPressed: _isSubmittingJV ? null : () {
+                        // Validate JV percentages first
+                        if (_jvEquityController.text.isEmpty || _jvInvestmentController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter both percentages'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final equity = double.tryParse(_jvEquityController.text.trim());
+                        final investment = double.tryParse(_jvInvestmentController.text.trim());
+                        
+                        if (equity == null || investment == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter valid percentages'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (equity + investment != 100) {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Invalid Percentages'),
+                              content: const Text('Landowner and Developer percentages must add up to 100%'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('OK'),
+                                ),
+                              ],
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Show confirmation dialog
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Confirm JV Proposal'),
+                            content: Text('Are you sure you want to submit a JV proposal with ${equity.toInt()}% Landowner and ${investment.toInt()}% Developer?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // Close confirmation dialog
+                                  Navigator.pop(context); // Close bottom sheet
+                                  setState(() {
+                                    _isSubmittingJV = true;
+                                  });
+                                  _submitJV();
+                                },
+                                child: const Text('Confirm'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      child: _isSubmittingJV
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Submit Proposal'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _submitJV,
-          child: _isSubmittingJV
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Submit Proposal'),
-        ),
-      ],
     );
   }
 
   Future<void> _submitOffer() async {
-    if (_offerAmountController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter an offer amount'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
-    }
-
-    // Validate offer amount is within ±20% of asking price
+    // Validation is now done in the button press, so we can proceed directly
     final offerAmount = double.parse(_offerAmountController.text.trim());
-    final askingPrice = _listing?.askingPrice ?? 0;
-    final minPrice = askingPrice * 0.8;
-    final maxPrice = askingPrice * 1.2;
-    
-    if (offerAmount < minPrice || offerAmount > maxPrice) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Offer must be between AED ${_formatPrice(minPrice)} and AED ${_formatPrice(maxPrice)}'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
-    }
 
-    setState(() {
-      _isSubmittingOffer = true;
-    });
 
     try {
       // Get current user
@@ -1342,8 +1564,8 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           setState(() {
             _hasActiveOffer = true;
             _isSubmittingOffer = false;
+            _isProcessingOffer = false;
           });
-          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Offer submitted successfully!'),
@@ -1356,6 +1578,7 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
       if (mounted) {
         setState(() {
           _isSubmittingOffer = false;
+          _isProcessingOffer = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1368,34 +1591,10 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   }
 
   Future<void> _submitJV() async {
-    if (_jvEquityController.text.isEmpty || _jvInvestmentController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all required fields'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
-    }
-
-    // Parse JV percentages
+    // Validation is now done in the button press, so we can proceed directly
     final landownerPercentage = double.parse(_jvEquityController.text.trim());
     final developerPercentage = double.parse(_jvInvestmentController.text.trim());
-    
-    // Validate percentages sum to 100%
-    if (landownerPercentage + developerPercentage != 100.0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Partnership percentages must sum to 100%'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-      return;
-    }
 
-    setState(() {
-      _isSubmittingJV = true;
-    });
 
     try {
       // Get current user
@@ -1480,7 +1679,6 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
           _hasActiveJV = true;
           _isSubmittingJV = false;
         });
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('JV proposal submitted successfully!'),

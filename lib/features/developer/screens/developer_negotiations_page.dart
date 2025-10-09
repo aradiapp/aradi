@@ -58,8 +58,8 @@ class _DeveloperNegotiationsPageState extends ConsumerState<DeveloperNegotiation
           case 'Cancelled':
             return negotiation.status == OfferStatus.rejected;
           case 'Completed':
-            // For now, we'll consider accepted as completed
-            return negotiation.status == OfferStatus.accepted;
+            // Only show truly completed negotiations (admin has completed the deal)
+            return negotiation.status == OfferStatus.completed;
           default:
             return true;
         }
@@ -338,7 +338,16 @@ class _DeveloperNegotiationsPageState extends ConsumerState<DeveloperNegotiation
       case OfferStatus.countered:
         backgroundColor = AppTheme.primaryColor;
         textColor = Colors.white;
-        text = 'Pending You'; // Developer perspective - seller countered, waiting for developer
+        // Check who made the last counter by looking at the last message
+        final lastMessage = negotiation.messages.isNotEmpty 
+            ? negotiation.messages.reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b)
+            : null;
+        
+        if (lastMessage != null && lastMessage.senderRole.toLowerCase() == 'developer') {
+          text = 'Pending Seller'; // Developer countered, waiting for seller
+        } else {
+          text = 'Pending You'; // Seller countered, waiting for developer
+        }
         break;
       case OfferStatus.accepted:
         backgroundColor = AppTheme.successColor;
@@ -349,6 +358,11 @@ class _DeveloperNegotiationsPageState extends ConsumerState<DeveloperNegotiation
         backgroundColor = AppTheme.errorColor;
         textColor = Colors.white;
         text = 'Cancelled'; // Changed from 'Rejected' to 'Cancelled'
+        break;
+      case OfferStatus.completed:
+        backgroundColor = AppTheme.successColor;
+        textColor = Colors.white;
+        text = 'Completed';
         break;
     }
 
@@ -508,6 +522,7 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
   final TextEditingController _jvLandownerController = TextEditingController();
   final TextEditingController _jvDeveloperController = TextEditingController();
   String? _selectedResponse;
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -629,12 +644,21 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
-                    onPressed: _selectedResponse != null ? _submitResponse : null,
+                    onPressed: (_selectedResponse != null && !_isSubmitting) ? _submitResponse : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('Send Response'),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Send Response'),
                   ),
                 ],
               ),
@@ -732,44 +756,63 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
           ),
         );
       case OfferStatus.countered:
-        // Seller countered, waiting for developer - show Accept, Reject, Counter
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildResponseButton(
-                    'Accept',
-                    Icons.check,
-                    AppTheme.successColor,
-                    'Accept',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildResponseButton(
-                    'Reject',
-                    Icons.close,
-                    AppTheme.errorColor,
-                    'Reject',
-                  ),
-                ),
-              ],
+        // Check who made the last counter to determine what buttons to show
+        final lastMessage = widget.negotiation.messages.isNotEmpty 
+            ? widget.negotiation.messages.reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b)
+            : null;
+        
+        if (lastMessage != null && lastMessage.senderRole.toLowerCase() == 'developer') {
+          // Developer countered, waiting for seller - show only Cancel
+          return SizedBox(
+            width: double.infinity,
+            child: _buildResponseButton(
+              'Cancel',
+              Icons.cancel,
+              AppTheme.errorColor,
+              'Cancel',
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: _buildResponseButton(
-                'Counter',
-                Icons.swap_horiz,
-                AppTheme.primaryColor,
-                'Counter',
+          );
+        } else {
+          // Seller countered, waiting for developer - show Accept, Reject, Counter
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildResponseButton(
+                      'Accept',
+                      Icons.check,
+                      AppTheme.successColor,
+                      'Accept',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildResponseButton(
+                      'Reject',
+                      Icons.close,
+                      AppTheme.errorColor,
+                      'Reject',
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        );
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: _buildResponseButton(
+                  'Counter',
+                  Icons.swap_horiz,
+                  AppTheme.primaryColor,
+                  'Counter',
+                ),
+              ),
+            ],
+          );
+        }
       case OfferStatus.accepted:
       case OfferStatus.rejected:
+      case OfferStatus.completed:
         // Deal is done - show no action buttons
         return const SizedBox.shrink();
     }
@@ -900,6 +943,10 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
   void _submitResponse() {
     print('_submitResponse called with: $_selectedResponse');
     if (_selectedResponse != null) {
+      setState(() {
+        _isSubmitting = true;
+      });
+      
       String? counterData;
       
       // If countering, validate the input
@@ -916,6 +963,9 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
           final developerText = _jvDeveloperController.text.trim();
           
           if (landownerText.isEmpty || developerText.isEmpty) {
+            setState(() {
+              _isSubmitting = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Please enter both percentages'),
@@ -929,6 +979,9 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
           final developerPercentage = double.tryParse(developerText);
           
           if (landownerPercentage == null || developerPercentage == null) {
+            setState(() {
+              _isSubmitting = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Please enter valid percentages'),
@@ -939,6 +992,9 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
           }
           
           if (landownerPercentage + developerPercentage != 100.0) {
+            setState(() {
+              _isSubmitting = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Percentages must sum to 100%'),
@@ -953,6 +1009,9 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
           // Buy counter - validate amount
           final amountText = _notesController.text.trim();
           if (amountText.isEmpty) {
+            setState(() {
+              _isSubmitting = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Please enter a counter amount'),
@@ -964,9 +1023,82 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
           
           final amount = double.tryParse(amountText);
           if (amount == null) {
+            setState(() {
+              _isSubmitting = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Please enter a valid amount'),
+                backgroundColor: AppTheme.errorColor,
+              ),
+            );
+            return;
+          }
+          
+          // Validate ±20% rule and check for same offer
+          final originalOfferMessage = widget.negotiation.messages.firstWhere(
+            (msg) => msg.content.contains('Made an offer of AED'),
+            orElse: () => widget.negotiation.messages.first,
+          );
+          
+          // Extract original amount from message content
+          final regex = RegExp(r'Made an offer of AED ([\d.,]+[KM]?)');
+          final match = regex.firstMatch(originalOfferMessage.content);
+          if (match != null) {
+            final originalAmountStr = match.group(1)!;
+            final originalAmount = _parseFormattedPrice(originalAmountStr);
+            
+            if (originalAmount != null) {
+              // Check if counter is the same as current offer
+              if (amount == originalAmount) {
+                setState(() {
+                  _isSubmitting = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Counter offer must be different from the current offer'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
+                return;
+              }
+              
+              final minAmount = originalAmount * 0.8; // 20% below
+              final maxAmount = originalAmount * 1.2; // 20% above
+              
+              if (amount < minAmount || amount > maxAmount) {
+                setState(() {
+                  _isSubmitting = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Counter offer must be within ±20% of the original offer (AED ${minAmount.toStringAsFixed(0)} to AED ${maxAmount.toStringAsFixed(0)})'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
+                return;
+              }
+            } else {
+              // If we can't parse the original amount, show a generic error
+              setState(() {
+                _isSubmitting = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Unable to validate counter offer. Please try again.'),
+                  backgroundColor: AppTheme.errorColor,
+                ),
+              );
+              return;
+            }
+          } else {
+            // If we can't find the original offer message, show a generic error
+            setState(() {
+              _isSubmitting = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Unable to find original offer. Please try again.'),
                 backgroundColor: AppTheme.errorColor,
               ),
             );
@@ -979,6 +1111,22 @@ class _DeveloperNegotiationDetailsDialogState extends State<DeveloperNegotiation
       
       print('Calling widget.onResponse with: $_selectedResponse, $counterData');
       widget.onResponse(_selectedResponse!, counterData);
+    }
+  }
+
+  double? _parseFormattedPrice(String priceStr) {
+    try {
+      if (priceStr.endsWith('M')) {
+        final number = double.parse(priceStr.replaceAll('M', ''));
+        return number * 1000000;
+      } else if (priceStr.endsWith('K')) {
+        final number = double.parse(priceStr.replaceAll('K', ''));
+        return number * 1000;
+      } else {
+        return double.parse(priceStr.replaceAll(',', ''));
+      }
+    } catch (e) {
+      return null;
     }
   }
 

@@ -11,6 +11,7 @@ enum NotificationType {
   listingExpired,
   subscriptionExpiring,
   newMessage,
+  dealUpdate,
   dealCompleted,
   kycRejected,
   preferredDeveloper,

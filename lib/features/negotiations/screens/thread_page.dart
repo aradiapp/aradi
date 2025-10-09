@@ -346,6 +346,11 @@ class _ThreadPageState extends State<ThreadPage> {
         statusText = 'Offer Rejected';
         statusIcon = Icons.cancel;
         break;
+      case OfferStatus.completed:
+        statusColor = AppTheme.successColor;
+        statusText = 'Deal Completed';
+        statusIcon = Icons.check_circle_outline;
+        break;
     }
 
     return Container(

@@ -366,6 +366,11 @@ class _InboxPageState extends ConsumerState<InboxPage> {
         icon = Icons.cancel;
         text = 'Rejected';
         break;
+      case OfferStatus.completed:
+        color = Colors.green;
+        icon = Icons.check_circle_outline;
+        text = 'Completed';
+        break;
     }
 
     return Container(

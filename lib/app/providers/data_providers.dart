@@ -23,8 +23,25 @@ final negotiationRepositoryProvider = Provider<FirestoreNegotiationRepository>((
 final authStateProvider = StreamProvider<User?>((ref) {
   final authService = ref.watch(authServiceProvider);
   return authService.authStateChanges.asyncMap((firebaseUser) async {
-    if (firebaseUser == null) return null;
-    return await authService.getCurrentUser();
+    if (firebaseUser == null) {
+      // User signed out - invalidate all profile providers
+      ref.invalidate(developerProfileProvider);
+      ref.invalidate(buyerProfileProvider);
+      ref.invalidate(sellerProfileProvider);
+      return null;
+    }
+    
+    final user = await authService.getCurrentUser();
+    
+    // If user changed (different ID), invalidate profile providers to ensure fresh data
+    if (user != null) {
+      // Invalidate all profile providers to clear any cached data from previous user
+      ref.invalidate(developerProfileProvider);
+      ref.invalidate(buyerProfileProvider);
+      ref.invalidate(sellerProfileProvider);
+    }
+    
+    return user;
   });
 });
 
@@ -37,17 +54,104 @@ final currentUserProvider = FutureProvider<User?>((ref) async {
 // User Profile Providers
 final developerProfileProvider = FutureProvider.family<DeveloperProfile?, String>((ref, userId) async {
   final userRepository = ref.watch(userRepositoryProvider);
-  return await userRepository.getDeveloperProfile(userId);
+  
+  // Add retry logic for profile lookups
+  for (int attempt = 0; attempt < 3; attempt++) {
+    try {
+      final profile = await userRepository.getDeveloperProfile(userId);
+      if (profile != null) {
+        return profile;
+      }
+      
+      // If profile is null and this is not the last attempt, wait and retry
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+        continue;
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error fetching developer profile (attempt ${attempt + 1}): $e');
+      
+      // If this is the last attempt, rethrow the error
+      if (attempt == 2) {
+        rethrow;
+      }
+      
+      // Wait before retrying
+      await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+    }
+  }
+  
+  return null;
 });
 
 final buyerProfileProvider = FutureProvider.family<BuyerProfile?, String>((ref, userId) async {
   final userRepository = ref.watch(userRepositoryProvider);
-  return await userRepository.getBuyerProfile(userId);
+  
+  // Add retry logic for profile lookups
+  for (int attempt = 0; attempt < 3; attempt++) {
+    try {
+      final profile = await userRepository.getBuyerProfile(userId);
+      if (profile != null) {
+        return profile;
+      }
+      
+      // If profile is null and this is not the last attempt, wait and retry
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+        continue;
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error fetching buyer profile (attempt ${attempt + 1}): $e');
+      
+      // If this is the last attempt, rethrow the error
+      if (attempt == 2) {
+        rethrow;
+      }
+      
+      // Wait before retrying
+      await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+    }
+  }
+  
+  return null;
 });
 
 final sellerProfileProvider = FutureProvider.family<SellerProfile?, String>((ref, userId) async {
   final userRepository = ref.watch(userRepositoryProvider);
-  return await userRepository.getSellerProfile(userId);
+  
+  // Add retry logic for profile lookups
+  for (int attempt = 0; attempt < 3; attempt++) {
+    try {
+      final profile = await userRepository.getSellerProfile(userId);
+      if (profile != null) {
+        return profile;
+      }
+      
+      // If profile is null and this is not the last attempt, wait and retry
+      if (attempt < 2) {
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+        continue;
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error fetching seller profile (attempt ${attempt + 1}): $e');
+      
+      // If this is the last attempt, rethrow the error
+      if (attempt == 2) {
+        rethrow;
+      }
+      
+      // Wait before retrying
+      await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+    }
+  }
+  
+  return null;
 });
 
 // Listings Providers

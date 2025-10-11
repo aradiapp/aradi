@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/app/navigation/main_navigation.dart';
 import 'package:aradi/core/models/user.dart';
+import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/features/onboarding/screens/splash_page.dart';
 import 'package:aradi/features/onboarding/screens/role_select_page.dart';
 import 'package:aradi/features/onboarding/screens/kyc_page.dart';
@@ -43,14 +45,55 @@ class AppRouter {
     initialLocation: '/',
     // Add redirect logic to handle navigation
     redirect: (context, state) {
-      // If user tries to access protected routes without going through onboarding
-      if (state.matchedLocation != '/' && 
-          state.matchedLocation != '/role' && 
-          !state.matchedLocation.startsWith('/kyc/')) {
-        // Check if we have a valid navigation path
-        return null; // Allow navigation
-      }
-      return null;
+      // Get the current auth state
+      final container = ProviderScope.containerOf(context);
+      final authState = container.read(authStateProvider);
+      
+      // Wait for auth state to be determined
+      return authState.when(
+        data: (user) {
+          // If user is authenticated, redirect to appropriate dashboard
+          if (user != null) {
+            // If trying to access auth/onboarding pages while logged in, redirect to dashboard
+            if (state.matchedLocation == '/' || 
+                state.matchedLocation == '/role' || 
+                state.matchedLocation == '/auth' ||
+                state.matchedLocation.startsWith('/kyc/')) {
+              switch (user.role) {
+                case UserRole.developer:
+                  return '/dev';
+                case UserRole.buyer:
+                  return '/buyer';
+                case UserRole.seller:
+                  return '/seller';
+                case UserRole.admin:
+                  return '/admin';
+              }
+            }
+            return null; // Allow navigation to protected routes
+          } else {
+            // User not authenticated - ALWAYS redirect to auth for any protected route
+            if (state.matchedLocation != '/' && 
+                state.matchedLocation != '/role' && 
+                state.matchedLocation != '/auth' &&
+                !state.matchedLocation.startsWith('/kyc/')) {
+              return '/auth';
+            }
+            return null; // Allow navigation to public routes
+          }
+        },
+        loading: () {
+          // While loading, if trying to access protected routes, redirect to auth
+          if (state.matchedLocation != '/' && 
+              state.matchedLocation != '/role' && 
+              state.matchedLocation != '/auth' &&
+              !state.matchedLocation.startsWith('/kyc/')) {
+            return '/auth';
+          }
+          return null; // Don't redirect while loading for public routes
+        },
+        error: (error, stack) => '/auth', // Redirect to auth on error
+      );
     },
     routes: [
       // Onboarding Routes

@@ -107,11 +107,74 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     // Update current index based on current route
     _updateCurrentIndex();
     
-    return Scaffold(
-      body: widget.child,
-      bottomNavigationBar: _buildBottomNavigationBar(),
-      appBar: _buildAppBar(),
+    return WillPopScope(
+      onWillPop: () async {
+        // Handle back button navigation
+        final currentRoute = GoRouterState.of(context).matchedLocation;
+        
+        // If we're on a main dashboard page, show exit confirmation
+        if (currentRoute == '/dev' || currentRoute == '/buyer' || currentRoute == '/seller' || currentRoute == '/admin') {
+          final shouldExit = await _showExitConfirmation();
+          if (shouldExit == true) {
+            return true; // Allow app to exit
+          }
+          return false; // Stay in app
+        }
+        
+        // For other pages, use normal navigation
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+          return false; // Prevent default back behavior
+        }
+        
+        // If can't pop, navigate to appropriate dashboard
+        _navigateToDashboard();
+        return false; // Prevent default back behavior
+      },
+      child: Scaffold(
+        body: widget.child,
+        bottomNavigationBar: _buildBottomNavigationBar(),
+        appBar: _buildAppBar(),
+      ),
     );
+  }
+
+  Future<bool?> _showExitConfirmation() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App'),
+        content: const Text('Are you sure you want to exit the app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Exit'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToDashboard() {
+    final currentRoute = GoRouterState.of(context).matchedLocation;
+    
+    // Navigate to appropriate dashboard based on current route
+    if (currentRoute.startsWith('/dev')) {
+      context.go('/dev');
+    } else if (currentRoute.startsWith('/buyer')) {
+      context.go('/buyer');
+    } else if (currentRoute.startsWith('/seller')) {
+      context.go('/seller');
+    } else if (currentRoute.startsWith('/admin')) {
+      context.go('/admin');
+    } else {
+      // Default to auth page if no clear role
+      context.go('/auth');
+    }
   }
 
   void _updateCurrentIndex() {

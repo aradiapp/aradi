@@ -142,6 +142,8 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
             onPressed: () async {
               final authService = ref.read(authServiceProvider);
               await authService.signOut();
+              // Small delay to ensure auth state change is processed
+              await Future.delayed(const Duration(milliseconds: 100));
               if (mounted) {
                 context.go('/auth');
               }

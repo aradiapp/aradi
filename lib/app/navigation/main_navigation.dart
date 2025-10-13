@@ -113,12 +113,18 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         final currentRoute = GoRouterState.of(context).matchedLocation;
         
         // If we're on a main dashboard page, show exit confirmation
-        if (currentRoute == '/dev' || currentRoute == '/buyer' || currentRoute == '/seller' || currentRoute == '/admin') {
+        if (currentRoute == '/dev' || currentRoute == '/dev/browse' || currentRoute == '/buyer' || currentRoute == '/seller' || currentRoute == '/admin') {
           final shouldExit = await _showExitConfirmation();
           if (shouldExit == true) {
             return true; // Allow app to exit
           }
           return false; // Stay in app
+        }
+        
+        // For developer listing details, navigate back to browse
+        if (currentRoute.contains('/dev/listing/') && !currentRoute.contains('/edit')) {
+          context.go('/dev/browse');
+          return false; // Prevent default back behavior
         }
         
         // For other pages, use normal navigation
@@ -285,7 +291,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
-      automaticallyImplyLeading: false,
+      leading: _getAppBarLeading(),
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
@@ -295,11 +301,50 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     );
   }
 
+  Widget? _getAppBarLeading() {
+    final currentRoute = GoRouterState.of(context).matchedLocation;
+    
+    // Add back button for seller routes that need navigation
+    if (currentRoute.contains('/seller/land/add')) {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/seller'),
+      );
+    }
+    
+    if (currentRoute.contains('/seller/listing/') && currentRoute.contains('/edit')) {
+      // Extract listing ID from route
+      final parts = currentRoute.split('/');
+      final listingId = parts[parts.length - 2]; // Get the ID before 'edit'
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/seller/listing/$listingId'),
+      );
+    }
+    
+    if (currentRoute.contains('/seller/listing/') && !currentRoute.contains('/edit')) {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/seller'),
+      );
+    }
+    
+    // Add back button for seller developer detail pages
+    if (currentRoute.contains('/seller/developer/')) {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/seller/browse'),
+      );
+    }
+    
+    return null;
+  }
+
   String _getAppBarTitle() {
     final currentRoute = GoRouterState.of(context).matchedLocation;
         if (currentRoute.contains('/buyer/listing/')) return ''; // Remove duplicate title for buyer listing pages
-        if (currentRoute.contains('/seller/listing/') && currentRoute.contains('/edit')) return '';
-        if (currentRoute.contains('/seller/listing/')) return ''; // Remove duplicate title for seller listing pages
+        if (currentRoute.contains('/seller/listing/') && currentRoute.contains('/edit')) return 'Edit Listing';
+        if (currentRoute.contains('/seller/listing/')) return 'Listing Details';
     if (currentRoute.contains('/dev/listing/')) return ''; // Remove duplicate title for developer listing pages
     if (currentRoute.contains('/thread/')) return 'Negotiation';
     if (currentRoute.contains('/agreement/')) return 'Agreement';
@@ -315,6 +360,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute == '/admin/contract-queue') return 'Deals';
     if (currentRoute.contains('/dev/browse')) return 'Listings';
     if (currentRoute.contains('/seller/browse')) return 'Developers';
+    if (currentRoute.contains('/seller/developer/')) return 'Browse developers';
     if (currentRoute.contains('/analytics')) return 'Analytics';
     return AppConfig.appName;
   }
@@ -350,6 +396,23 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
                 backgroundColor: AppTheme.successColor,
               ),
             );
+          },
+        ),
+      ];
+    }
+    
+    // Add edit button for seller listing detail pages
+    if (currentRoute.contains('/seller/listing/') && !currentRoute.contains('/edit')) {
+      // Extract listing ID from route
+      final parts = currentRoute.split('/');
+      final listingId = parts[parts.length - 1]; // Get the last part which should be the ID
+      return [
+        IconButton(
+          icon: const Icon(Icons.edit),
+          onPressed: () {
+            final editUrl = '/seller/listing/$listingId/edit';
+            print('Navigating to edit URL: $editUrl');
+            context.go(editUrl);
           },
         ),
       ];

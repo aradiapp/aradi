@@ -99,19 +99,6 @@ class _SellerDeveloperDetailPageState extends State<SellerDeveloperDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: const Text('Developer Details'),
-        backgroundColor: AppTheme.accentColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            print('Back button pressed');
-            context.go('/seller/browse');
-          },
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _developer == null

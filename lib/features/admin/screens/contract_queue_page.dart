@@ -180,30 +180,24 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-        children: [
-          Expanded(
-                child: _buildFilterChip(
-                  'Pending',
-                  DealStatus.pending,
-                  AppTheme.warningColor,
-                ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildFilterChip(
+                'Pending',
+                DealStatus.pending,
+                AppTheme.warningColor,
               ),
-              const SizedBox(width: 8),
-          Expanded(
-                child: _buildFilterChip(
-                  'Completed',
-                  DealStatus.completed,
-              AppTheme.successColor,
-            ),
-          ),
-              const SizedBox(width: 8),
-          Expanded(
-                child: _buildFilterChip(
-                  'Cancelled',
-                  DealStatus.cancelled,
-                  AppTheme.errorColor,
-                ),
+              _buildFilterChip(
+                'Completed',
+                DealStatus.completed,
+                AppTheme.successColor,
+              ),
+              _buildFilterChip(
+                'Cancelled',
+                DealStatus.cancelled,
+                AppTheme.errorColor,
               ),
             ],
           ),
@@ -219,7 +213,7 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
       onTap: () => _onFilterChanged(status),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
+        decoration: BoxDecoration(
           color: isSelected ? color : Colors.grey[100],
           borderRadius: BorderRadius.circular(8),
           border: Border.all(

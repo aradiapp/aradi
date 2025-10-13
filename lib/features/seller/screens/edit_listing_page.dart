@@ -273,15 +273,6 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: const Text('Edit Listing'),
-        backgroundColor: AppTheme.accentColor,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () => context.go('/seller/listing/${widget.listingId}'),
-          icon: const Icon(Icons.arrow_back),
-        ),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _originalListing == null

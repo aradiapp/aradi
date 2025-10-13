@@ -703,26 +703,6 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: const Text('Listing Details'),
-        backgroundColor: AppTheme.accentColor,
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () => context.go('/seller'),
-          icon: const Icon(Icons.arrow_back),
-        ),
-        actions: [
-          if (_listing != null && !_hasAcceptedNegotiation && _listing!.status != ListingStatus.sold)
-            IconButton(
-              onPressed: () {
-                final editUrl = '/seller/listing/${_listing!.id}/edit';
-                print('Navigating to edit URL: $editUrl');
-                context.go(editUrl);
-              },
-              icon: const Icon(Icons.edit),
-            ),
-        ],
-      ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(),

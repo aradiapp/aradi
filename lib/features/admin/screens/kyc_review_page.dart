@@ -217,7 +217,7 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
           children: [
             AppBar(
               title: Text(title),
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: AppTheme.secondaryColor,
               foregroundColor: Colors.white,
               automaticallyImplyLeading: false,
               actions: [
@@ -455,7 +455,7 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: Text('KYC Review - ${widget.user.name}'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.secondaryColor,
         foregroundColor: Colors.white,
         actions: [
           IconButton(

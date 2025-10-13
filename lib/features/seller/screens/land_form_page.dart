@@ -72,15 +72,6 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Text(
-                'Create New Listing',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
               Text(
                 'Provide details about your land to attract developers',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(

@@ -275,7 +275,7 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text('Edit Listing'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.accentColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           onPressed: () => context.go('/seller/listing/${widget.listingId}'),

@@ -67,7 +67,7 @@ class _SellerProfilePageState extends ConsumerState<SellerProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Seller Profile'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.accentColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           onPressed: () {

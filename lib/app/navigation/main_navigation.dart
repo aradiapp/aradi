@@ -254,16 +254,42 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     // Show AppBar for all other pages
     if (isProfilePage) return null;
     
+    // Determine header color based on current route and user role
+    Color headerColor = AppTheme.primaryColor; // Default blue
+    
+    if (currentRoute.startsWith('/seller')) {
+      headerColor = AppTheme.accentColor; // Orange
+    } else if (currentRoute.startsWith('/buyer')) {
+      headerColor = AppTheme.primaryLight; // Light Blue
+    } else if (currentRoute.startsWith('/admin')) {
+      headerColor = AppTheme.secondaryColor; // Green
+    } else if (currentRoute.startsWith('/dev')) {
+      headerColor = AppTheme.primaryColor; // Blue
+    } else if (currentRoute.contains('/notifications') || currentRoute.contains('/thread/') || currentRoute.contains('/agreement/')) {
+      // For shared pages (notifications, negotiations), determine color based on user's role
+      final userRole = _currentUserRole ?? widget.userRole;
+      if (userRole == UserRole.seller) {
+        headerColor = AppTheme.accentColor; // Orange
+      } else if (userRole == UserRole.buyer) {
+        headerColor = AppTheme.primaryLight; // Light Blue
+      } else if (userRole == UserRole.admin) {
+        headerColor = AppTheme.secondaryColor; // Green
+      } else if (userRole == UserRole.developer) {
+        headerColor = AppTheme.primaryColor; // Blue
+      }
+    }
+    
     return AppBar(
       title: Text(_getAppBarTitle()),
-      backgroundColor: Colors.transparent,
+      backgroundColor: headerColor,
+      foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
       systemOverlayStyle: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
       ),
       actions: _getAppBarActions(),
     );
@@ -283,10 +309,10 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute == '/dev') return 'Listings'; // Redirected to browse
     if (currentRoute == '/buyer') return 'Buyer Dashboard';
     if (currentRoute == '/seller') return 'Seller Dashboard';
-    if (currentRoute == '/admin') return '';
-    if (currentRoute == '/admin/verification') return '';
-    if (currentRoute == '/admin/settings') return '';
-    if (currentRoute == '/admin/contract-queue') return '';
+    if (currentRoute == '/admin') return 'KYC Review';
+    if (currentRoute == '/admin/verification') return 'Listings Review';
+    if (currentRoute == '/admin/settings') return 'Admin Settings';
+    if (currentRoute == '/admin/contract-queue') return 'Deals';
     if (currentRoute.contains('/dev/browse')) return 'Listings';
     if (currentRoute.contains('/seller/browse')) return 'Developers';
     if (currentRoute.contains('/analytics')) return 'Analytics';
@@ -328,6 +354,26 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         ),
       ];
     }
+    
+    // Add sign-out button for admin settings
+    if (currentRoute == '/admin/settings') {
+      return [
+        IconButton(
+          icon: const Icon(Icons.logout),
+          onPressed: () async {
+            final authService = ref.read(authServiceProvider);
+            await authService.signOut();
+            // Small delay to ensure auth state change is processed
+            await Future.delayed(const Duration(milliseconds: 100));
+            if (context.mounted) {
+              context.go('/auth');
+            }
+          },
+          tooltip: 'Sign Out',
+        ),
+      ];
+    }
+    
     return null;
   }
 
@@ -347,7 +393,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
           child: Row(
             children: navItems.asMap().entries.map((entry) {
               final index = entry.key;

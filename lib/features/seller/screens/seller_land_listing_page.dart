@@ -705,7 +705,7 @@ class _SellerLandListingPageState extends ConsumerState<SellerLandListingPage> {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text('Listing Details'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.accentColor,
         foregroundColor: Colors.white,
         leading: IconButton(
           onPressed: () => context.go('/seller'),

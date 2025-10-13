@@ -6,6 +6,7 @@ import 'package:aradi/core/models/notification_event.dart';
 import 'package:aradi/core/services/notification_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
+import 'package:aradi/core/models/user.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});

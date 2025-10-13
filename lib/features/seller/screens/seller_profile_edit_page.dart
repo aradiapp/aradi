@@ -34,7 +34,7 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Seller Profile'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.accentColor,
         foregroundColor: Colors.white,
         actions: [
           TextButton(

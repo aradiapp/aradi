@@ -171,19 +171,22 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Listings Review'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: _toggleFilters,
-            icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
-          ),
-        ],
-      ),
       body: Column(
         children: [
+          // Filter toggle button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: _toggleFilters,
+                  icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
+                  tooltip: _showFilters ? 'Hide Filters' : 'Show Filters',
+                ),
+              ],
+            ),
+          ),
           if (_showFilters) _buildFilters(),
           Expanded(
             child: _isLoading

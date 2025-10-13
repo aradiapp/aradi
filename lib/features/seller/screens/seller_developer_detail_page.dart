@@ -101,7 +101,8 @@ class _SellerDeveloperDetailPageState extends State<SellerDeveloperDetailPage> {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text('Developer Details'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.accentColor,
+        foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

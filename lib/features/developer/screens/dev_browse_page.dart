@@ -214,7 +214,7 @@ class _DevBrowsePageState extends ConsumerState<DevBrowsePage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Developers (${_filteredListings.length})',
+            'Listings (${_filteredListings.length})',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),

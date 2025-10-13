@@ -24,7 +24,7 @@ class _BuyerProfileEditPageState extends ConsumerState<BuyerProfileEditPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Buyer Profile'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.primaryLight,
         foregroundColor: Colors.white,
         actions: [
           TextButton(

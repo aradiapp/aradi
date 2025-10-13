@@ -128,31 +128,22 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: const Text('KYC Review'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: _toggleFilters,
-            icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              final authService = ref.read(authServiceProvider);
-              await authService.signOut();
-              // Small delay to ensure auth state change is processed
-              await Future.delayed(const Duration(milliseconds: 100));
-              if (mounted) {
-                context.go('/auth');
-              }
-            },
-          ),
-        ],
-      ),
       body: Column(
         children: [
+          // Filter toggle button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: _toggleFilters,
+                  icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
+                  tooltip: _showFilters ? 'Hide Filters' : 'Show Filters',
+                ),
+              ],
+            ),
+          ),
           if (_showFilters) _buildFilters(),
           Expanded(
             child: _isLoading

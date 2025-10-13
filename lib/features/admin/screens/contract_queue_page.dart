@@ -137,20 +137,22 @@ class _ContractQueuePageState extends State<ContractQueuePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: const Text('Deals'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _toggleFilters,
-            icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
-          ),
-        ],
-      ),
       body: Column(
         children: [
+          // Filter toggle button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: _toggleFilters,
+                  icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list),
+                  tooltip: _showFilters ? 'Hide Filters' : 'Show Filters',
+                ),
+              ],
+            ),
+          ),
           if (_showFilters) _buildFilters(),
           Expanded(
             child: _isLoading
@@ -764,7 +766,7 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
                             if (listing.buildingSpecs != null)
                               _buildDetailRow('Building Specs', listing.buildingSpecs!),
                             if (listing.photos.isNotEmpty) ...[
-                              const SizedBox(height: 8),
+            const SizedBox(height: 8),
                               const Text('Photos:', style: TextStyle(fontWeight: FontWeight.w600)),
                               const SizedBox(height: 8),
                               SizedBox(

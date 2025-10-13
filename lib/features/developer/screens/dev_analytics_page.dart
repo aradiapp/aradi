@@ -23,22 +23,13 @@ class _DevAnalyticsPageState extends State<DevAnalyticsPage> {
             ],
           ),
         ),
-        child: SafeArea(
-          child: Column(
+        child: Column(
             children: [
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    Text(
-                      'Analytics',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
                       'Track your performance and insights',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -107,7 +98,6 @@ class _DevAnalyticsPageState extends State<DevAnalyticsPage> {
             ],
           ),
         ),
-      ),
     );
   }
 }

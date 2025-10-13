@@ -10,7 +10,8 @@ class SellerDevBrowserPage extends StatelessWidget {
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text('Browse Developers'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.accentColor,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Center(

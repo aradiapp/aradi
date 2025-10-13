@@ -181,10 +181,11 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/dev/browse'),
         ),
         title: Text(

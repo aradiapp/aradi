@@ -70,7 +70,7 @@ class _BuyerListingDetailPageState extends ConsumerState<BuyerListingDetailPage>
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
         title: const Text('Listing Details'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.primaryLight,
         foregroundColor: Colors.white,
         leading: IconButton(
           onPressed: () => context.go('/buyer/browse'),

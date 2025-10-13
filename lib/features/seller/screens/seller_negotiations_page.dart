@@ -126,12 +126,6 @@ class _SellerNegotiationsPageState extends ConsumerState<SellerNegotiationsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Negotiations'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _negotiations.isEmpty

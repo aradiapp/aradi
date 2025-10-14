@@ -180,23 +180,6 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/dev/browse'),
-        ),
-        title: Text(
-          'Listing Details',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _listing == null

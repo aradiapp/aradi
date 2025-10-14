@@ -329,6 +329,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       );
     }
     
+    // Add back button for developer listing detail pages
+    if (currentRoute.contains('/dev/listing/') && !currentRoute.contains('/edit')) {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/dev/browse'),
+      );
+    }
+    
     // Add back button for seller developer detail pages
     if (currentRoute.contains('/seller/developer/')) {
       return IconButton(
@@ -345,7 +353,6 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         if (currentRoute.contains('/buyer/listing/')) return ''; // Remove duplicate title for buyer listing pages
         if (currentRoute.contains('/seller/listing/') && currentRoute.contains('/edit')) return 'Edit Listing';
         if (currentRoute.contains('/seller/listing/')) return 'Listing Details';
-    if (currentRoute.contains('/dev/listing/')) return ''; // Remove duplicate title for developer listing pages
     if (currentRoute.contains('/thread/')) return 'Negotiation';
     if (currentRoute.contains('/agreement/')) return 'Agreement';
     if (currentRoute.contains('/land/add')) return 'Add Listing';
@@ -359,6 +366,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute == '/admin/settings') return 'Admin Settings';
     if (currentRoute == '/admin/contract-queue') return 'Deals';
     if (currentRoute.contains('/dev/browse')) return 'Listings';
+    if (currentRoute.contains('/dev/listing/')) return 'Listing Details';
     if (currentRoute.contains('/seller/browse')) return 'Developers';
     if (currentRoute.contains('/seller/developer/')) return 'Browse developers';
     if (currentRoute.contains('/analytics')) return 'Analytics';

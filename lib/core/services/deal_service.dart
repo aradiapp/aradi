@@ -298,8 +298,8 @@ class DealService {
   /// Check if all required documents are uploaded for a deal
   bool hasAllRequiredDocuments(Deal deal) {
     if (deal.type == DealType.buy) {
-      // Buy deals need Contract A, B, F
-      final requiredDocs = ['Contract A', 'Contract B', 'Contract F'];
+      // Buy deals need Contract A, B, F, and New title deed
+      final requiredDocs = ['Contract A', 'Contract B', 'Contract F', 'New title deed'];
       return requiredDocs.every((doc) => deal.contractDocuments.containsKey(doc));
     } else if (deal.type == DealType.jv) {
       // JV deals need JV Agreement

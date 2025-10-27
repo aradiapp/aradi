@@ -835,7 +835,7 @@ class _AdminVerificationPageState extends ConsumerState<AdminVerificationPage> {
             if (profileData['signatoryPassport'] != null)
               _buildDocumentRow('Signatory Passport', profileData['signatoryPassport']),
             if (profileData['catalogDocumentUrl'] != null)
-              _buildDocumentRow('Company Catalog', profileData['catalogDocumentUrl']),
+              _buildDocumentRow('Company Profile', profileData['catalogDocumentUrl']),
             if (profileData['logoUrl'] != null)
               _buildDocumentRow('Company Logo', profileData['logoUrl']),
           ]),

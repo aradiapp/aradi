@@ -454,7 +454,7 @@ class _DevProfileEditPageState extends ConsumerState<DevProfileEditPage> {
                   ),
             ),
             const SizedBox(height: 16),
-            _buildDocumentUploadItem('Company Catalog', profile.catalogDocumentUrl, _selectedCatalogDocument, () => _pickDocument('catalog')),
+            _buildDocumentUploadItem('Company Profile', profile.catalogDocumentUrl, _selectedCatalogDocument, () => _pickDocument('catalog')),
             const SizedBox(height: 12),
             _buildDocumentUploadItem('Trade License', profile.tradeLicense, _selectedTradeLicense, () => _pickDocument('tradeLicense')),
             const SizedBox(height: 12),

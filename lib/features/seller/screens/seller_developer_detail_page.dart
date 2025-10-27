@@ -389,7 +389,7 @@ class _SellerDeveloperDetailPageState extends State<SellerDeveloperDetailPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Company Catalog',
+                      'Company Profile',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,

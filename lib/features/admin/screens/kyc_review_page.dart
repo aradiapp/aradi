@@ -296,7 +296,7 @@ class _KycReviewPageState extends ConsumerState<KycReviewPage> {
         _buildDocumentImage(profile.signatoryPassport, 'Signatory Passport'),
         if (profile.catalogDocumentUrl != null && profile.catalogDocumentUrl!.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _buildDocumentImage(profile.catalogDocumentUrl, 'Company Catalog'),
+          _buildDocumentImage(profile.catalogDocumentUrl, 'Company Profile'),
         ],
         if (profile.logoUrl != null && profile.logoUrl!.isNotEmpty) ...[
           const SizedBox(height: 16),

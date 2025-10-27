@@ -382,7 +382,7 @@ class DevProfileFormPage extends ConsumerWidget {
             ),
             const Divider(),
             if (profile.catalogDocumentUrl != null && profile.catalogDocumentUrl!.isNotEmpty) ...[
-              _buildDocumentItem(context, 'Company Catalog', profile.catalogDocumentUrl!),
+              _buildDocumentItem(context, 'Company Profile', profile.catalogDocumentUrl!),
               const SizedBox(height: 12),
             ],
             _buildDocumentItem(context, 'Trade License', profile.tradeLicense),

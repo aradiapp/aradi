@@ -636,6 +636,7 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
     'Contract A': false,
     'Contract B': false,
     'Contract F': false,
+    'New title deed': false,
     'JV Agreement': false,
   };
   
@@ -826,6 +827,7 @@ class _DealDetailsDialogState extends State<DealDetailsDialog> {
                       _buildDocumentUpload('Contract A', 'Contract A'),
                       _buildDocumentUpload('Contract B', 'Contract B'),
                       _buildDocumentUpload('Contract F', 'Contract F'),
+                      _buildDocumentUpload('New title deed', 'New title deed'),
                     ] else if (_currentDeal.type == DealType.jv) ...[
                       _buildSectionHeader('JV Agreement'),
                       _buildDocumentUpload('JV Agreement', 'JV Agreement'),

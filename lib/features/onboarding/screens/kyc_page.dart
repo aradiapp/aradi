@@ -829,7 +829,7 @@ class _KYCPageState extends ConsumerState<KYCPage> {
           ),
           const SizedBox(height: 12),
           _buildFileUploadButton(
-            label: 'Company Catalog (Optional)',
+            label: 'Company Profile (Optional)',
             file: _catalogDocumentFile,
             onTap: () => _pickFile('catalogDocument'),
             required: false,

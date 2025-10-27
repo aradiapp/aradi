@@ -329,6 +329,14 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
       );
     }
     
+    // Add back button for KYC pages
+    if (currentRoute.contains('/kyc/')) {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.go('/role'),
+      );
+    }
+    
     // Add back button for developer listing detail pages
     if (currentRoute.contains('/dev/listing/') && !currentRoute.contains('/edit')) {
       return IconButton(
@@ -348,11 +356,27 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     return null;
   }
 
+  String _getRoleTitle() {
+    switch (_currentUserRole) {
+      case UserRole.developer:
+        return 'Developer';
+      case UserRole.buyer:
+        return 'Buyer';
+      case UserRole.seller:
+        return 'Seller';
+      case UserRole.admin:
+        return 'Admin';
+      case null:
+        return 'User';
+    }
+  }
+
   String _getAppBarTitle() {
     final currentRoute = GoRouterState.of(context).matchedLocation;
         if (currentRoute.contains('/buyer/listing/')) return ''; // Remove duplicate title for buyer listing pages
         if (currentRoute.contains('/seller/listing/') && currentRoute.contains('/edit')) return 'Edit Listing';
         if (currentRoute.contains('/seller/listing/')) return 'Listing Details';
+    if (currentRoute.contains('/kyc/')) return '${_getRoleTitle()} Verification';
     if (currentRoute.contains('/thread/')) return 'Negotiation';
     if (currentRoute.contains('/agreement/')) return 'Agreement';
     if (currentRoute.contains('/land/add')) return 'Add Listing';

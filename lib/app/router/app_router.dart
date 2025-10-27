@@ -52,24 +52,49 @@ class AppRouter {
       // Wait for auth state to be determined
       return authState.when(
         data: (user) {
-          // If user is authenticated, redirect to appropriate dashboard
+          // If user is authenticated, check if they should be redirected
           if (user != null) {
-            // If trying to access auth/onboarding pages while logged in, redirect to dashboard
+            // If trying to access root or role selection pages while logged in, redirect based on KYC status
             if (state.matchedLocation == '/' || 
-                state.matchedLocation == '/role' || 
-                state.matchedLocation == '/auth' ||
-                state.matchedLocation.startsWith('/kyc/')) {
-              switch (user.role) {
-                case UserRole.developer:
-                  return '/dev';
-                case UserRole.buyer:
-                  return '/buyer';
-                case UserRole.seller:
-                  return '/seller';
-                case UserRole.admin:
-                  return '/admin';
+                state.matchedLocation == '/role') {
+              
+              // Check if user needs to complete profile or KYC
+              if (!user.isProfileComplete) {
+                // User hasn't completed profile - redirect to KYC
+                return '/kyc/${user.role.toString().split('.').last}';
+              } else if (!user.isKycVerified) {
+                // User completed profile but KYC not verified - stay on auth page
+                return '/auth';
+              } else {
+                // User is fully verified - redirect to dashboard
+                switch (user.role) {
+                  case UserRole.developer:
+                    return '/dev';
+                  case UserRole.buyer:
+                    return '/buyer';
+                  case UserRole.seller:
+                    return '/seller';
+                  case UserRole.admin:
+                    return '/admin';
+                }
               }
             }
+            // If user is on /auth page and fully verified, redirect to dashboard
+            if (state.matchedLocation == '/auth') {
+              if (user.isProfileComplete && user.isKycVerified) {
+                switch (user.role) {
+                  case UserRole.developer:
+                    return '/dev';
+                  case UserRole.buyer:
+                    return '/buyer';
+                  case UserRole.seller:
+                    return '/seller';
+                  case UserRole.admin:
+                    return '/admin';
+                }
+              }
+            }
+            // Don't redirect if user is on KYC pages - let them navigate freely
             return null; // Allow navigation to protected routes
           } else {
             // User not authenticated - ALWAYS redirect to auth for any protected route

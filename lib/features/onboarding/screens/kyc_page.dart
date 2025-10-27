@@ -123,33 +123,26 @@ class _KYCPageState extends ConsumerState<KYCPage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Handle system back button
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        } else {
-          context.go('/role');
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          // Navigate back to auth screen using GoRouter
+          context.pushReplacement('/auth');
         }
-        return false; // Prevent default back behavior
       },
       child: Scaffold(
         backgroundColor: AppTheme.backgroundLight,
         appBar: AppBar(
           title: Text('${_getRoleTitle()} Verification'),
-          backgroundColor: Colors.transparent,
+          backgroundColor: _getRoleColor(),
+          foregroundColor: Colors.white,
           elevation: 0,
-          // Ensure back button works properly
-          automaticallyImplyLeading: true,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              // Navigate back to role selection
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                context.go('/role');
-              }
+              // Navigate back to auth screen using GoRouter
+              context.pushReplacement('/auth');
             },
           ),
         ),
@@ -784,6 +777,19 @@ class _KYCPageState extends ConsumerState<KYCPage> {
         return 'Seller';
       default:
         return 'User';
+    }
+  }
+
+  Color _getRoleColor() {
+    switch (widget.role) {
+      case 'developer':
+        return AppTheme.primaryColor; // Blue
+      case 'buyer':
+        return AppTheme.primaryLight; // Light blue
+      case 'seller':
+        return AppTheme.accentColor; // Orange
+      default:
+        return AppTheme.primaryColor;
     }
   }
   

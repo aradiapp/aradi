@@ -107,8 +107,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     // Update current index based on current route
     _updateCurrentIndex();
     
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        
         // Handle back button navigation
         final currentRoute = GoRouterState.of(context).matchedLocation;
         
@@ -116,26 +119,28 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
         if (currentRoute == '/dev' || currentRoute == '/dev/browse' || currentRoute == '/buyer' || currentRoute == '/seller' || currentRoute == '/admin') {
           final shouldExit = await _showExitConfirmation();
           if (shouldExit == true) {
-            return true; // Allow app to exit
+            // Allow app to exit
+            SystemNavigator.pop();
+            return;
           }
-          return false; // Stay in app
+          // Stay in app - don't pop
+          return;
         }
         
         // For developer listing details, navigate back to browse
         if (currentRoute.contains('/dev/listing/') && !currentRoute.contains('/edit')) {
           context.go('/dev/browse');
-          return false; // Prevent default back behavior
+          return;
         }
         
         // For other pages, use normal navigation
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-          return false; // Prevent default back behavior
+        if (context.canPop()) {
+          context.pop();
+          return;
         }
         
         // If can't pop, navigate to appropriate dashboard
         _navigateToDashboard();
-        return false; // Prevent default back behavior
       },
       child: Scaffold(
         body: widget.child,

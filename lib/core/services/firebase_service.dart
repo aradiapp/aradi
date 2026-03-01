@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:aradi/core/config/app_env.dart';
 
 class FirebaseService {
   static FirebaseApp? _app;
@@ -20,21 +20,22 @@ class FirebaseService {
 
   static Future<void> initialize() async {
     try {
-      // Check if Firebase should be enabled
-      final useFirebase = dotenv.env['USE_FIREBASE'] == 'true';
-      if (!useFirebase) {
-        print('Firebase disabled via environment variable');
+      if (!AppEnv.useFirebase || !AppEnv.hasFirebaseConfig) {
+        print('Firebase disabled or config not provided (use --dart-define)');
         return;
       }
 
-      // Initialize Firebase
       _app = await Firebase.initializeApp(
         options: FirebaseOptions(
-          apiKey: dotenv.env['FIREBASE_API_KEY'] ?? "your_api_key_here",
-          appId: dotenv.env['FIREBASE_APP_ID'] ?? "your_app_id_here",
-          messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID'] ?? "your_sender_id_here",
-          projectId: dotenv.env['FIREBASE_PROJECT_ID'] ?? "aradi-app",
-          storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'] ?? "aradi-app.appspot.com",
+          apiKey: AppEnv.firebaseApiKey,
+          appId: AppEnv.firebaseAppId,
+          messagingSenderId: AppEnv.firebaseMessagingSenderId,
+          projectId: AppEnv.firebaseProjectId.isNotEmpty
+              ? AppEnv.firebaseProjectId
+              : 'aradi-app',
+          storageBucket: AppEnv.firebaseStorageBucket.isNotEmpty
+              ? AppEnv.firebaseStorageBucket
+              : 'aradi-app.appspot.com',
         ),
       );
 
@@ -156,7 +157,7 @@ class FirebaseService {
   }
 
   static bool get isInitialized => _app != null;
-  static bool get isEnabled => dotenv.env['USE_FIREBASE'] == 'true';
+  static bool get isEnabled => AppEnv.useFirebase && AppEnv.hasFirebaseConfig;
 }
 
 // Background message handler

@@ -77,51 +77,25 @@ lib/
    flutter pub get
    ```
 
-3. **Configure environment**
+3. **Run the app** (no config step: script uses `env.example` and creates `.env` if needed)
    ```bash
-   cp env.example .env
-   # Edit .env with your configuration
+   dart run scripts/run_with_env.dart
    ```
-
-4. **Run the app**
+   Or with explicit flags (values from `env.example`):
    ```bash
-   flutter run
+   flutter run --dart-define=USE_FIREBASE=true --dart-define=FIREBASE_PROJECT_ID=aradi-app-ed624 --dart-define=FIREBASE_API_KEY=AIzaSyCiq_6o977MK_jlJXdKDmhzDrtBMViBFJY --dart-define=FIREBASE_APP_ID=1:766361317085:android:b753416f89fb5b805ef534 --dart-define=FIREBASE_MESSAGING_SENDER_ID=766361317085 --dart-define=FIREBASE_STORAGE_BUCKET=aradi-app-ed624.firebasestorage.app
    ```
 
 ### Environment Configuration
 
-The app uses feature flags to control functionality:
+Config is in `env.example` (real values). `dart run scripts/run_with_env.dart` creates `.env` from it if missing and passes `--dart-define` to Flutter so nothing is bundled into the APK.
 
-```env
-# Feature Flags
-USE_FIREBASE=false          # Set to true when Firebase is configured
-USE_STRIPE=false           # Set to true when Stripe is configured
-USE_MOCK_DATA=true         # Set to false when using real backend
+- **Local dev**: Just run `dart run scripts/run_with_env.dart`.
+- **CI/Release**: Use the same `--dart-define` flags; values are in `env.example`.
 
-# Firebase Configuration (when USE_FIREBASE=true)
-FIREBASE_PROJECT_ID=aradi-app
-FIREBASE_API_KEY=your_api_key_here
-FIREBASE_APP_ID=your_app_id_here
-FIREBASE_MESSAGING_SENDER_ID=your_sender_id_here
-```
+### Firebase Setup
 
-### Firebase Setup (Optional)
-
-1. **Create Firebase project**
-   - Go to [Firebase Console](https://console.firebase.google.com/)
-   - Create new project
-   - Enable Authentication, Firestore, Storage, and Cloud Messaging
-
-2. **Configure Flutter app**
-   - Download `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
-   - Place in appropriate platform directories
-   - Update environment variables
-
-3. **Enable services**
-   ```env
-   USE_FIREBASE=true
-   USE_MOCK_DATA=false
-   ```
+Firebase config is in `env.example`. Ensure `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) are in place, then run `dart run scripts/run_with_env.dart` or use the `--dart-define` commands from the README.
 
 ### Code Generation
 
@@ -218,15 +192,22 @@ genhtml coverage/lcov.info -o coverage/html
 
 ## 📦 Build & Deploy
 
+### Secure build (no .env bundled in APK)
+
+- Config is from `--dart-define` at compile time; use `env.example` values or `dart run scripts/run_with_env.dart` for builds.
+- **Obfuscation**: `flutter build apk --obfuscate --split-debug-info=build/app/outputs/symbols` plus the same `--dart-define` flags.
+
 ### Android Build
 ```bash
-flutter build apk --release
-flutter build appbundle --release
+flutter build apk --release --dart-define=USE_FIREBASE=true --dart-define=FIREBASE_PROJECT_ID=aradi-app-ed624 --dart-define=FIREBASE_API_KEY=AIzaSyCiq_6o977MK_jlJXdKDmhzDrtBMViBFJY --dart-define=FIREBASE_APP_ID=1:766361317085:android:b753416f89fb5b805ef534 --dart-define=FIREBASE_MESSAGING_SENDER_ID=766361317085 --dart-define=FIREBASE_STORAGE_BUCKET=aradi-app-ed624.firebasestorage.app
+```
+```bash
+flutter build appbundle --release --dart-define=USE_FIREBASE=true --dart-define=FIREBASE_PROJECT_ID=aradi-app-ed624 --dart-define=FIREBASE_API_KEY=AIzaSyCiq_6o977MK_jlJXdKDmhzDrtBMViBFJY --dart-define=FIREBASE_APP_ID=1:766361317085:android:b753416f89fb5b805ef534 --dart-define=FIREBASE_MESSAGING_SENDER_ID=766361317085 --dart-define=FIREBASE_STORAGE_BUCKET=aradi-app-ed624.firebasestorage.app
 ```
 
 ### iOS Build
 ```bash
-flutter build ios --release
+flutter build ios --release --dart-define=USE_FIREBASE=true --dart-define=FIREBASE_PROJECT_ID=aradi-app-ed624 --dart-define=FIREBASE_API_KEY=AIzaSyCiq_6o977MK_jlJXdKDmhzDrtBMViBFJY --dart-define=FIREBASE_APP_ID=1:766361317085:android:b753416f89fb5b805ef534 --dart-define=FIREBASE_MESSAGING_SENDER_ID=766361317085 --dart-define=FIREBASE_STORAGE_BUCKET=aradi-app-ed624.firebasestorage.app
 ```
 
 ### Web Build

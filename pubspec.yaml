@@ -29,9 +29,6 @@ dependencies:
   firebase_storage: ^11.5.6
   firebase_messaging: ^14.7.10
   
-  # Environment & Utils
-  flutter_dotenv: ^5.1.0
-  
   # Optional packages (with feature flags)
   # stripe_sdk: ^0.0.1 # Temporarily disabled - incompatible with null safety
   image_picker: ^1.0.4
@@ -55,6 +52,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  assets:
-    - .env
-    - env.example
+  # No .env or secrets in assets - use --dart-define at build time (see lib/core/config/app_env.dart)

@@ -279,12 +279,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               },
               child: const Text('View Listing'),
             )
-          // Handle other notifications with deep links
-          else if (notification.deepLink != null)
+          // Handle other notifications with deep links (including admin: from data.deepLink)
+          else if ((notification.data?['deepLink'] ?? notification.deepLink) != null)
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                context.go(notification.deepLink!);
+                context.go(notification.data?['deepLink'] ?? notification.deepLink!);
               },
               child: const Text('View Details'),
             ),
@@ -317,6 +317,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         return Icons.workspace_premium;
       case NotificationType.systemAlert:
         return Icons.info;
+      case NotificationType.adminKycPending:
+        return Icons.person_search;
+      case NotificationType.adminListingPending:
+        return Icons.home_work;
+      case NotificationType.adminOfferPending:
+        return Icons.handshake;
+      case NotificationType.adminContactRequest:
+        return Icons.inbox;
       default:
         return Icons.notifications;
     }
@@ -342,6 +350,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         return Colors.amber[700]!;
       case NotificationType.systemAlert:
         return AppTheme.warningColor;
+      case NotificationType.adminKycPending:
+      case NotificationType.adminListingPending:
+      case NotificationType.adminOfferPending:
+      case NotificationType.adminContactRequest:
+        return AppTheme.secondaryColor;
       default:
         return AppTheme.primaryColor;
     }

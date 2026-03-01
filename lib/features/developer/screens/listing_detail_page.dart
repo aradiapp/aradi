@@ -1544,6 +1544,17 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
       );
       print('Notification sent successfully');
 
+      // Notify admins (buy offer to review)
+      try {
+        await NotificationService().notifyAdminsOfferPending(
+          developerName: developerName,
+          listingTitle: '${_listing!.emirate}, ${_listing!.city}',
+          offerId: offer.id,
+          negotiationId: negotiationId,
+          offerType: 'Buy',
+        );
+      } catch (_) {}
+
         if (mounted) {
           setState(() {
             _hasActiveOffer = true;
@@ -1657,6 +1668,17 @@ class _ListingDetailPageState extends ConsumerState<ListingDetailPage> {
         offerId: offer.id,
       );
       print('JV notification sent successfully');
+
+      // Notify admins (JV offer to review)
+      try {
+        await NotificationService().notifyAdminsOfferPending(
+          developerName: developerName,
+          listingTitle: '${_listing!.emirate}, ${_listing!.city}',
+          offerId: offer.id,
+          negotiationId: negotiationId,
+          offerType: 'JV',
+        );
+      } catch (_) {}
 
       if (mounted) {
         setState(() {

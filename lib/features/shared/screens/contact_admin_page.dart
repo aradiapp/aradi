@@ -5,6 +5,7 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/core/models/user.dart';
 import 'package:aradi/core/services/contact_request_service.dart';
+import 'package:aradi/core/services/notification_service.dart';
 
 class ContactAdminPage extends ConsumerStatefulWidget {
   final UserRole userRole;
@@ -44,6 +45,14 @@ class _ContactAdminPageState extends ConsumerState<ContactAdminPage> {
         subject: _subjectController.text.trim(),
         message: _messageController.text.trim(),
       );
+      // Notify admins (contact admin to see)
+      try {
+        await NotificationService().notifyAdminsContactRequest(
+          userName: user.name,
+          userRole: widget.userRole == UserRole.seller ? 'seller' : 'developer',
+          subject: _subjectController.text.trim(),
+        );
+      } catch (_) {}
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

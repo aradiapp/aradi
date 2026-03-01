@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/file_upload_service.dart';
+import 'package:aradi/core/services/notification_service.dart';
 import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/models/buyer_profile.dart';
 import 'package:aradi/core/models/seller_profile.dart';
@@ -1156,7 +1157,17 @@ class _KYCPageState extends ConsumerState<KYCPage> {
           wasKycRejected: false, // Reset rejection flag on resubmission
         );
         await authService.updateUserProfile(updatedUser);
-        
+
+        // Notify admins so they get push + in-app notification (KYC to verify)
+        try {
+          final notificationService = NotificationService();
+          await notificationService.notifyAdminsKycPending(
+            userName: updatedUser.name,
+            userRole: updatedUser.role.toString().split('.').last,
+            userId: updatedUser.id,
+          );
+        } catch (_) {}
+
         // Show pending approval message and navigate to auth
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

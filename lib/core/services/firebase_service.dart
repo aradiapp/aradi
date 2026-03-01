@@ -51,8 +51,11 @@ class FirebaseService {
         cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
       );
 
-      // Request notification permissions
+      // Request notification permissions and store FCM token
       await _requestNotificationPermissions();
+
+      // Handle foreground/background messages and open-from-notification
+      await configureMessaging();
 
       print('Firebase initialized successfully');
     } catch (e) {
@@ -75,12 +78,15 @@ class FirebaseService {
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         print('User granted notification permission');
-        
-        // Get FCM token
         final token = await _messaging!.getToken();
         if (token != null) {
-          print('FCM Token: $token');
-          // Store token in user profile or send to backend
+          final uid = _auth!.currentUser?.uid;
+          if (uid != null) {
+            await _firestore!.collection('users').doc(uid).update({
+              'fcmToken': token,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
         }
       } else {
         print('User declined notification permission');
@@ -114,34 +120,58 @@ class FirebaseService {
         _handleDeepLink(message.data);
       });
 
-      // Check if app was opened from notification
+      // Check if app was opened from notification (cold start)
       final initialMessage = await _messaging!.getInitialMessage();
       if (initialMessage != null) {
         print('App opened from notification');
         _handleDeepLink(initialMessage.data);
       }
+
+      // Refresh FCM token and keep it updated in Firestore
+      _messaging!.onTokenRefresh.listen((token) async {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null && _firestore != null) {
+          try {
+            await _firestore!.collection('users').doc(uid).update({
+              'fcmToken': token,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          } catch (_) {}
+        }
+      });
     } catch (e) {
       print('Failed to configure messaging: $e');
     }
   }
 
-  static void _handleDeepLink(Map<String, dynamic> data) {
-    // Handle deep linking based on notification data
+  /// Set when app is opened from a push; consumed by MainNavigation to navigate.
+  static String? pendingDeepLink;
+
+  static void clearPendingDeepLink() {
+    pendingDeepLink = null;
+  }
+
+  static void _handleDeepLink(Map<String, dynamic>? data) {
+    if (data == null) return;
+    // Prefer explicit deepLink from Cloud Function / notification data
+    final deepLink = data['deepLink'] as String?;
+    if (deepLink != null && deepLink.isNotEmpty) {
+      pendingDeepLink = deepLink;
+      return;
+    }
     final type = data['type'];
     final id = data['id'];
-    
     switch (type) {
       case 'offer':
-        // Navigate to offer details
+        if (id != null) pendingDeepLink = '/seller/negotiations';
         break;
       case 'listing':
-        // Navigate to listing details
+        if (id != null) pendingDeepLink = '/dev/listing/$id';
         break;
       case 'negotiation':
-        // Navigate to negotiation thread
+        if (id != null) pendingDeepLink = '/neg/thread/$id';
         break;
       default:
-        // Default navigation
         break;
     }
   }

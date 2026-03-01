@@ -6,6 +6,7 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/user.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/core/config/app_config.dart';
+import 'package:aradi/core/services/firebase_service.dart';
 
 class MainNavigation extends ConsumerStatefulWidget {
   final Widget child;
@@ -106,7 +107,16 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
 
     // Update current index based on current route
     _updateCurrentIndex();
-    
+
+    // Handle deep link from push notification (app opened from notification)
+    final pending = FirebaseService.pendingDeepLink;
+    if (pending != null) {
+      FirebaseService.clearPendingDeepLink();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go(pending);
+      });
+    }
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {

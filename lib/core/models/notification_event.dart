@@ -15,7 +15,12 @@ enum NotificationType {
   dealCompleted,
   kycRejected,
   preferredDeveloper,
-  systemAlert
+  systemAlert,
+  // Admin-only: things to review
+  adminKycPending,
+  adminListingPending,
+  adminOfferPending,
+  adminContactRequest,
 }
 
 enum NotificationPriority { low, normal, high, urgent }
@@ -67,7 +72,7 @@ class NotificationEvent {
       ),
       data: json['data'] as Map<String, dynamic>?,
       deepLink: json['deepLink'] as String?,
-      isRead: json['isRead'] as bool? ?? false,
+      isRead: json['isRead'] as bool? ?? (json['read'] as bool? ?? false),
       isPushSent: json['isPushSent'] as bool? ?? false,
       createdAt: (json['createdAt'] as Timestamp).toDate(),
       readAt: json['readAt'] != null

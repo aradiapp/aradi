@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Node (Cloud Functions)
+node_modules/
+**/node_modules/
+
 # Miscellaneous
 *.class
 *.log

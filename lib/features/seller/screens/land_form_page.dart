@@ -924,8 +924,18 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
 
       // Save to Firebase
       print('Saving listing to Firestore...');
-      await _landListingService.createListing(updatedListing);
+      final listingId = await _landListingService.createListing(updatedListing);
       print('Listing saved successfully!');
+
+      // Notify admins (listing to verify) so they get push + in-app notification
+      try {
+        final notificationService = NotificationService();
+        await notificationService.notifyAdminsListingPending(
+          listingTitle: '${updatedListing.emirate}, ${updatedListing.city}',
+          listingId: listingId,
+          sellerName: currentUser.name,
+        );
+      } catch (_) {}
 
       // Note: Preferred developer notifications will be sent when admin approves the listing
 

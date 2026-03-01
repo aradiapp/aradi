@@ -182,7 +182,7 @@ class NotificationService {
           .doc(userId)
           .collection('events')
           .doc(notificationId)
-          .update({'read': true});
+          .update({'isRead': true});
     } catch (e) {
       print('Error marking notification as read: $e');
     }
@@ -196,11 +196,11 @@ class NotificationService {
           .collection('notifications')
           .doc(userId)
           .collection('events')
-          .where('read', isEqualTo: false)
+          .where('isRead', isEqualTo: false)
           .get();
 
       for (final doc in notifications.docs) {
-        batch.update(doc.reference, {'read': true});
+        batch.update(doc.reference, {'isRead': true});
       }
 
       await batch.commit();
@@ -216,7 +216,7 @@ class NotificationService {
           .collection('notifications')
           .doc(userId)
           .collection('events')
-          .where('read', isEqualTo: false)
+          .where('isRead', isEqualTo: false)
           .get();
       
       return snapshot.docs.length;
@@ -414,6 +414,123 @@ class NotificationService {
     );
     
     print('=== NOTIFICATION CREATION COMPLETED ===');
+  }
+
+  /// Get all admin user IDs (for sending admin-only notifications)
+  Future<List<String>> _getAdminUserIds() async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'admin')
+          .get();
+      return snapshot.docs.map((d) => d.id).toList();
+    } catch (e) {
+      print('Error getting admin IDs: $e');
+      return [];
+    }
+  }
+
+  /// Notify all admins (each gets an in-app + push notification)
+  Future<void> notifyAdmins({
+    required NotificationType type,
+    required String title,
+    required String body,
+    required Map<String, dynamic> data,
+  }) async {
+    final adminIds = await _getAdminUserIds();
+    for (final adminId in adminIds) {
+      await createNotificationEvent(
+        userId: adminId,
+        type: type,
+        title: title,
+        body: body,
+        data: data,
+      );
+    }
+  }
+
+  /// Admin: KYC to verify
+  Future<void> notifyAdminsKycPending({
+    required String userName,
+    required String userRole,
+    required String userId,
+  }) async {
+    await notifyAdmins(
+      type: NotificationType.adminKycPending,
+      title: 'KYC to verify',
+      body: '$userName ($userRole) submitted profile for verification',
+      data: {
+        'type': 'kyc_pending',
+        'userId': userId,
+        'userName': userName,
+        'userRole': userRole,
+        'deepLink': '/admin',
+      },
+    );
+  }
+
+  /// Admin: Listing to verify
+  Future<void> notifyAdminsListingPending({
+    required String listingTitle,
+    required String listingId,
+    required String sellerName,
+  }) async {
+    await notifyAdmins(
+      type: NotificationType.adminListingPending,
+      title: 'Listing to verify',
+      body: '$sellerName submitted "$listingTitle" for verification',
+      data: {
+        'type': 'listing_pending',
+        'listingId': listingId,
+        'listingTitle': listingTitle,
+        'sellerName': sellerName,
+        'deepLink': '/admin/verification',
+      },
+    );
+  }
+
+  /// Admin: Buy or JV offer to verify
+  Future<void> notifyAdminsOfferPending({
+    required String developerName,
+    required String listingTitle,
+    required String offerId,
+    required String negotiationId,
+    required String offerType,
+  }) async {
+    await notifyAdmins(
+      type: NotificationType.adminOfferPending,
+      title: '$offerType offer to review',
+      body: '$developerName sent a $offerType offer for "$listingTitle"',
+      data: {
+        'type': 'offer_pending',
+        'offerId': offerId,
+        'negotiationId': negotiationId,
+        'developerName': developerName,
+        'listingTitle': listingTitle,
+        'offerType': offerType,
+        'deepLink': '/admin/contract-queue',
+      },
+    );
+  }
+
+  /// Admin: Contact admin to see
+  Future<void> notifyAdminsContactRequest({
+    required String userName,
+    required String userRole,
+    required String subject,
+  }) async {
+    await notifyAdmins(
+      type: NotificationType.adminContactRequest,
+      title: 'Contact admin to see',
+      body: '$userName ($userRole): $subject',
+      data: {
+        'type': 'contact_request',
+        'userName': userName,
+        'userRole': userRole,
+        'subject': subject,
+        'deepLink': '/admin/inbox',
+      },
+    );
   }
 }
 

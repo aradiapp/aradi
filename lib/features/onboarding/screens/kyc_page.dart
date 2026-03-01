@@ -953,12 +953,11 @@ class _KYCPageState extends ConsumerState<KYCPage> {
         }
       }
       
-      // Pick file based on type
+      // Pick file based on type: logo = image picker, documents = document picker (PDF or image)
       if (type == 'logo') {
         selectedFile = await fileUploadService.pickImageFromGallery();
       } else {
-        // For documents, show gallery option
-        selectedFile = await fileUploadService.pickImageFromGallery();
+        selectedFile = await fileUploadService.pickDocument();
       }
       
       if (selectedFile != null) {

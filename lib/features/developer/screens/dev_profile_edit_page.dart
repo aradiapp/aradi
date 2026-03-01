@@ -10,6 +10,7 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/models/user.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:aradi/core/services/file_upload_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 
 class DevProfileEditPage extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class _DevProfileEditPageState extends ConsumerState<DevProfileEditPage> {
   final _formKey = GlobalKey<FormBuilderState>();
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
+  final FileUploadService _fileUploadService = FileUploadService();
   String? _selectedProfilePicture;
   String? _selectedCatalogDocument;
   String? _selectedTradeLicense;
@@ -535,18 +537,18 @@ class _DevProfileEditPageState extends ConsumerState<DevProfileEditPage> {
 
   Future<void> _pickDocument(String documentType) async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image != null) {
+      final file = await _fileUploadService.pickDocument();
+      if (file != null) {
         setState(() {
           switch (documentType) {
             case 'catalog':
-              _selectedCatalogDocument = image.path;
+              _selectedCatalogDocument = file.path;
               break;
             case 'tradeLicense':
-              _selectedTradeLicense = image.path;
+              _selectedTradeLicense = file.path;
               break;
             case 'passport':
-              _selectedPassport = image.path;
+              _selectedPassport = file.path;
               break;
           }
         });

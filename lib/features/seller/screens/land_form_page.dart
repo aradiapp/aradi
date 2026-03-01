@@ -5,6 +5,7 @@ import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:aradi/core/services/file_upload_service.dart';
 import 'package:aradi/core/services/location_service.dart';
 import 'package:aradi/core/services/notification_service.dart';
 import 'package:aradi/app/providers/data_providers.dart';
@@ -44,6 +45,7 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
   String _tempListingId = '';
   final LandListingService _landListingService = LandListingService();
   final PhotoUploadService _photoUploadService = PhotoUploadService();
+  final FileUploadService _fileUploadService = FileUploadService();
   final FirebaseStorage _storage = FirebaseStorage.instance;
   
   // Photo-related variables
@@ -1054,16 +1056,12 @@ class _LandFormPageState extends ConsumerState<LandFormPage> {
     );
   }
 
-  // Method to pick document
+  // Method to pick document (PDF or image)
   Future<void> _pickDocument(Function(File?) onFileSelected) async {
     try {
-      final result = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      
-      if (result != null) {
-        onFileSelected(File(result.path));
+      final file = await _fileUploadService.pickDocument();
+      if (file != null) {
+        onFileSelected(file);
       }
     } catch (e) {
       print('Error picking document: $e');

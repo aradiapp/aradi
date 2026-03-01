@@ -6,7 +6,9 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/seller_profile.dart';
 import 'package:aradi/app/providers/data_providers.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:aradi/core/services/file_upload_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
 import 'dart:io';
 
 class SellerProfileEditPage extends ConsumerStatefulWidget {
@@ -26,6 +28,7 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
   String? _passportImageUrl;
   String? _tradeLicenseImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
+  final FileUploadService _fileUploadService = FileUploadService();
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +155,7 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
                 });
               },
               isRequired: true,
+              useDocumentPicker: true,
             ),
             const SizedBox(height: 24),
             _buildSectionHeader('Company Information (Optional)'),
@@ -166,6 +170,7 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
                 });
               },
               isRequired: false,
+              useDocumentPicker: true,
             ),
             const SizedBox(height: 24),
             _buildListingStatsCard(profile),
@@ -371,7 +376,10 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
     File? selectedImage,
     required Function(File?) onImageSelected,
     required bool isRequired,
+    bool useDocumentPicker = false,
   }) {
+    final isPdfOrDoc = selectedImage != null &&
+        ['.pdf', '.doc', '.docx'].contains(path.extension(selectedImage.path).toLowerCase());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -392,15 +400,27 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
           child: selectedImage != null
               ? Stack(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        selectedImage,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
+                    if (isPdfOrDoc)
+                      Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.picture_as_pdf, size: 48, color: AppTheme.primaryColor),
+                            const SizedBox(height: 8),
+                            Text(path.basename(selectedImage.path), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      )
+                    else
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          selectedImage,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
                     Positioned(
                       top: 8,
                       right: 8,
@@ -464,7 +484,7 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Tap to upload image',
+                          useDocumentPicker ? 'Tap to upload document (PDF or image)' : 'Tap to upload image',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -477,9 +497,9 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: () => _pickImage(onImageSelected),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Upload Image'),
+                onPressed: () => useDocumentPicker ? _pickDocument(onImageSelected) : _pickImage(onImageSelected),
+                icon: Icon(useDocumentPicker ? Icons.upload_file : Icons.camera_alt),
+                label: Text(useDocumentPicker ? 'Upload Document' : 'Upload Image'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
                   foregroundColor: Colors.white,
@@ -509,7 +529,6 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
         maxHeight: 1080,
         imageQuality: 85,
       );
-      
       if (image != null) {
         onImageSelected(File(image.path));
       }
@@ -518,6 +537,24 @@ class _SellerProfileEditPageState extends ConsumerState<SellerProfileEditPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking image: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _pickDocument(Function(File?) onFileSelected) async {
+    try {
+      final file = await _fileUploadService.pickDocument();
+      if (file != null) {
+        onFileSelected(file);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking document: $e'),
             backgroundColor: AppTheme.errorColor,
           ),
         );

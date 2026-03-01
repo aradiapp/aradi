@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
@@ -97,6 +98,22 @@ class FileUploadService {
       return null;
     } catch (e) {
       throw Exception('Failed to pick image from camera: $e');
+    }
+  }
+
+  /// Pick a document (PDF, Word, or image). Use for deeds, licenses, passports, etc.
+  Future<File?> pickDocument() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+      );
+      if (result != null && result.files.single.path != null) {
+        return File(result.files.single.path!);
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to pick document: $e');
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:aradi/app/theme/app_theme.dart';
 import 'package:aradi/core/models/land_listing.dart';
 import 'package:aradi/core/services/land_listing_service.dart';
 import 'package:aradi/core/services/photo_upload_service.dart';
+import 'package:aradi/core/services/file_upload_service.dart';
 import 'package:aradi/core/services/auth_service.dart';
 import 'package:aradi/core/models/developer_profile.dart';
 import 'package:aradi/core/services/location_service.dart';
@@ -57,6 +58,7 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
 
   final LandListingService _landListingService = LandListingService();
   final PhotoUploadService _photoUploadService = PhotoUploadService();
+  final FileUploadService _fileUploadService = FileUploadService();
 
   @override
   void initState() {
@@ -1133,23 +1135,12 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
 
   Future<void> _uploadDocument(String label, Function(String?) onChanged) async {
     try {
-      // Pick an image
-      final result = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-
-      if (result != null) {
-        final file = File(result.path);
-        
-        // Store the file locally (like photo upload)
+      final file = await _fileUploadService.pickDocument();
+      if (file != null) {
         if (label == 'Title Deed / DCR') {
           _titleDeedDocument = file;
         }
-        
-        // Update the UI to show document selected
         onChanged('local_file_selected');
-        
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('$label selected. Will be uploaded when you save.')),
@@ -1158,7 +1149,6 @@ class _EditListingPageState extends ConsumerState<EditListingPage> {
       }
     } catch (e) {
       print('Error picking document: $e');
-      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error picking document: $e')),

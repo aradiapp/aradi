@@ -134,7 +134,52 @@ class _SellerProfilePageState extends ConsumerState<SellerProfilePage> {
           _buildCompanyInfo(context, profile),
           const SizedBox(height: 24),
           _buildListingStats(context, profile),
+          const SizedBox(height: 24),
+          _buildSettingsSection(context),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsSection(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => context.push('/seller/settings'),
+        borderRadius: BorderRadius.circular(12),
+        child: const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(Icons.settings, color: AppTheme.primaryColor, size: 28),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Settings',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Terms and agreements, Contact admin',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: AppTheme.textSecondary),
+            ],
+          ),
+        ),
       ),
     );
   }

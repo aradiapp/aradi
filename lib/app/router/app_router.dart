@@ -38,6 +38,10 @@ import 'package:aradi/features/admin/screens/contract_queue_page.dart';
 import 'package:aradi/features/admin/screens/admin_home_page.dart';
 import 'package:aradi/features/admin/screens/admin_verification_page.dart';
 import 'package:aradi/features/admin/screens/admin_settings_page.dart';
+import 'package:aradi/features/admin/screens/admin_contact_inbox_page.dart';
+import 'package:aradi/features/shared/screens/terms_page.dart';
+import 'package:aradi/features/shared/screens/settings_page.dart';
+import 'package:aradi/features/shared/screens/contact_admin_page.dart';
 import 'package:aradi/features/notifications/screens/notifications_page.dart';
 
 class AppRouter {
@@ -164,6 +168,24 @@ class AppRouter {
           builder: (context, state) => MainNavigation(
             userRole: UserRole.developer,
             child: const DevProfileFormPage(),
+          ),
+        ),
+        GoRoute(
+          path: '/dev/settings',
+          builder: (context, state) => MainNavigation(
+            userRole: UserRole.developer,
+            child: const SettingsPage(userRole: UserRole.developer),
+          ),
+        ),
+        GoRoute(
+          path: '/dev/terms',
+          builder: (context, state) => const TermsPage(),
+        ),
+        GoRoute(
+          path: '/dev/contact-admin',
+          builder: (context, state) => MainNavigation(
+            userRole: UserRole.developer,
+            child: const ContactAdminPage(userRole: UserRole.developer),
           ),
         ),
         GoRoute(
@@ -300,6 +322,24 @@ class AppRouter {
           ),
         ),
         GoRoute(
+          path: '/seller/settings',
+          builder: (context, state) => MainNavigation(
+            userRole: UserRole.seller,
+            child: const SettingsPage(userRole: UserRole.seller),
+          ),
+        ),
+        GoRoute(
+          path: '/seller/terms',
+          builder: (context, state) => const TermsPage(),
+        ),
+        GoRoute(
+          path: '/seller/contact-admin',
+          builder: (context, state) => MainNavigation(
+            userRole: UserRole.seller,
+            child: const ContactAdminPage(userRole: UserRole.seller),
+          ),
+        ),
+        GoRoute(
           path: '/seller/profile/edit',
           builder: (context, state) => MainNavigation(
             userRole: UserRole.seller,
@@ -370,6 +410,13 @@ class AppRouter {
         builder: (context, state) => MainNavigation(
           userRole: UserRole.admin,
           child: const AdminSettingsPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/inbox',
+        builder: (context, state) => MainNavigation(
+          userRole: UserRole.admin,
+          child: const AdminContactInboxPage(),
         ),
       ),
       

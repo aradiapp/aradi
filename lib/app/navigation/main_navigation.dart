@@ -393,6 +393,7 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
     if (currentRoute == '/admin') return 'KYC Review';
     if (currentRoute == '/admin/verification') return 'Listings Review';
     if (currentRoute == '/admin/settings') return 'Admin Settings';
+    if (currentRoute == '/admin/inbox') return 'Contact Inbox';
     if (currentRoute == '/admin/contract-queue') return 'Deals';
     if (currentRoute.contains('/dev/browse')) return 'Listings';
     if (currentRoute.contains('/dev/listing/')) return 'Listing Details';
@@ -655,6 +656,11 @@ class _MainNavigationState extends ConsumerState<MainNavigation> {
             icon: Icons.queue,
             label: 'Contract Queue',
             route: '/admin/contract-queue',
+          ),
+          NavigationItem(
+            icon: Icons.inbox,
+            label: 'Inbox',
+            route: '/admin/inbox',
           ),
           NavigationItem(
             icon: Icons.settings,

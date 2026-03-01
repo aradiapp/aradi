@@ -88,6 +88,16 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
+    // Contact requests (sellers/developers submit; admins read/update)
+    match /contact_requests/{requestId} {
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // Notifications - users can read/write their own, admins can write to any user's notifications
     match /notifications/{userId}/events/{eventId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;

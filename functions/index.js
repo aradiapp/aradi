@@ -45,7 +45,6 @@ exports.sendPushOnNotificationEvent = functions.firestore
         notification: {
           title,
           body,
-          sound: "default",
         },
         data: fcmData,
         android: {

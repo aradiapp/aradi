@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:aradi/core/config/app_env.dart';
 
 class FirebaseService {
@@ -11,6 +14,8 @@ class FirebaseService {
   static FirebaseFirestore? _firestore;
   static FirebaseStorage? _storage;
   static FirebaseMessaging? _messaging;
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   static FirebaseApp get app => _app!;
   static FirebaseAuth get auth => _auth!;
@@ -54,8 +59,17 @@ class FirebaseService {
       // Request notification permissions and store FCM token
       await _requestNotificationPermissions();
 
+      // Init local notifications so we can show a heads-up when FCM arrives in foreground
+      await _initLocalNotifications();
+
       // Handle foreground/background messages and open-from-notification
       await configureMessaging();
+
+      // Store FCM token when we have a user (auth may restore after init)
+      _listenAuthAndStoreFcmToken();
+
+      // One-time store in case auth was already ready
+      await _storeFcmTokenIfUser();
 
       print('Firebase initialized successfully');
     } catch (e) {
@@ -78,16 +92,7 @@ class FirebaseService {
 
       if (settings.authorizationStatus == AuthorizationStatus.authorized) {
         print('User granted notification permission');
-        final token = await _messaging!.getToken();
-        if (token != null) {
-          final uid = _auth!.currentUser?.uid;
-          if (uid != null) {
-            await _firestore!.collection('users').doc(uid).update({
-              'fcmToken': token,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-          }
-        }
+        await _storeFcmTokenIfUser();
       } else {
         print('User declined notification permission');
       }
@@ -96,19 +101,79 @@ class FirebaseService {
     }
   }
 
+  /// Store FCM token in Firestore when we have a signed-in user (so Cloud Function can send push).
+  static Future<void> _storeFcmTokenIfUser() async {
+    final uid = _auth?.currentUser?.uid;
+    if (uid == null || _messaging == null || _firestore == null) return;
+    try {
+      final token = await _messaging!.getToken();
+      if (token != null) {
+        await _firestore!.collection('users').doc(uid).update({
+          'fcmToken': token,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        print('FCM token stored for user $uid');
+      }
+    } catch (e) {
+      print('Failed to store FCM token: $e');
+    }
+  }
+
+  /// When auth state changes (e.g. user restored or just signed in), store FCM token so push works.
+  static void _listenAuthAndStoreFcmToken() {
+    _auth?.authStateChanges().listen((User? user) {
+      if (user != null) {
+        _storeFcmTokenIfUser();
+      }
+    });
+  }
+
+  static Future<void> _initLocalNotifications() async {
+    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const ios = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+    );
+    const initSettings = InitializationSettings(android: android, iOS: ios);
+    await _localNotifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        if (response.payload != null && response.payload!.isNotEmpty) {
+          try {
+            final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+            _handleDeepLink(data);
+          } catch (_) {}
+        }
+      },
+    );
+    // Use "default" channel to match Cloud Function and MainActivity
+    const channel = AndroidNotificationChannel(
+      'default',
+      'Notifications',
+      description: 'App and admin notifications',
+      importance: Importance.high,
+      playSound: true,
+    );
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+  }
+
   static Future<void> configureMessaging() async {
     try {
       // Handle background messages
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-      // Handle foreground messages
+      // Handle foreground messages: show a local notification so user sees it
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         print('Got a message whilst in the foreground!');
-        print('Message data: ${message.data}');
-
-        if (message.notification != null) {
-          print('Message also contained a notification: ${message.notification}');
-        }
+        final title = message.notification?.title ?? 'Notification';
+        final body = message.notification?.body ?? '';
+        final payload = message.data.isNotEmpty
+            ? jsonEncode(message.data)
+            : null;
+        _showForegroundNotification(title: title, body: body, payload: payload);
       });
 
       // Handle when app is opened from notification
@@ -149,6 +214,24 @@ class FirebaseService {
 
   static void clearPendingDeepLink() {
     pendingDeepLink = null;
+  }
+
+  static Future<void> _showForegroundNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const android = AndroidNotificationDetails(
+      'default',
+      'Notifications',
+      channelDescription: 'App and admin notifications',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    const ios = DarwinNotificationDetails();
+    const details = NotificationDetails(android: android, iOS: ios);
+    final id = DateTime.now().millisecondsSinceEpoch.remainder(0x7FFFFFFF);
+    await _localNotifications.show(id, title, body, details, payload: payload);
   }
 
   static void _handleDeepLink(Map<String, dynamic>? data) {

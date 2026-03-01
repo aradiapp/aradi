@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 class FileUploadService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -11,18 +12,21 @@ class FileUploadService {
   // Upload a single file
   Future<String> uploadFile(File file, String folder) async {
     try {
+      // Ensure file exists (picker may return a path that was deleted). If not, use bytes if we have a valid path for content type.
+      File fileToUpload = file;
+      if (!file.existsSync()) {
+        throw Exception(
+          'The selected file is no longer available. Please pick the file again and submit immediately.',
+        );
+      }
       final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(file.path)}';
       final ref = _storage.ref().child('$folder/$fileName');
-      
-      // Create metadata with proper content type
       final metadata = SettableMetadata(
         contentType: _getContentType(file.path),
-        cacheControl: 'max-age=31536000', // 1 year cache
+        cacheControl: 'max-age=31536000',
       );
-      
-      final uploadTask = await ref.putFile(file, metadata);
+      final uploadTask = await ref.putFile(fileToUpload, metadata);
       final downloadUrl = await uploadTask.ref.getDownloadURL();
-      
       return downloadUrl;
     } catch (e) {
       throw Exception('Failed to upload file: $e');
@@ -72,9 +76,8 @@ class FileUploadService {
         maxHeight: 1080,
         imageQuality: 85,
       );
-      
       if (image != null) {
-        return File(image.path);
+        return await _copyToAppTemp(File(image.path), path.basename(image.path));
       }
       return null;
     } catch (e) {
@@ -91,9 +94,8 @@ class FileUploadService {
         maxHeight: 1080,
         imageQuality: 85,
       );
-      
       if (image != null) {
-        return File(image.path);
+        return await _copyToAppTemp(File(image.path), path.basename(image.path));
       }
       return null;
     } catch (e) {
@@ -102,19 +104,49 @@ class FileUploadService {
   }
 
   /// Pick a document (PDF, Word, or image). Use for deeds, licenses, passports, etc.
+  /// Copies the file into the app temp dir so the path stays valid until upload.
   Future<File?> pickDocument() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
       );
-      if (result != null && result.files.single.path != null) {
-        return File(result.files.single.path!);
+      if (result == null) return null;
+      final platformFile = result.files.single;
+      final name = platformFile.name;
+      if (platformFile.bytes != null) {
+        return await _writeBytesToAppTemp(platformFile.bytes!, name);
+      }
+      if (platformFile.path != null) {
+        final source = File(platformFile.path!);
+        if (source.existsSync()) {
+          return await _copyToAppTemp(source, name);
+        }
       }
       return null;
     } catch (e) {
       throw Exception('Failed to pick document: $e');
     }
+  }
+
+  /// Copy a file to app temp dir so the path remains valid for upload.
+  Future<File> _copyToAppTemp(File source, String baseName) async {
+    final dir = await getTemporaryDirectory();
+    final ext = path.extension(baseName);
+    final name = path.basenameWithoutExtension(baseName);
+    final dest = File('${dir.path}/aradi_${DateTime.now().millisecondsSinceEpoch}_${name}$ext');
+    await source.copy(dest.path);
+    return dest;
+  }
+
+  /// Write bytes to app temp file (e.g. when picker only provides bytes).
+  Future<File> _writeBytesToAppTemp(List<int> bytes, String baseName) async {
+    final dir = await getTemporaryDirectory();
+    final ext = path.extension(baseName);
+    final name = path.basenameWithoutExtension(baseName);
+    final dest = File('${dir.path}/aradi_${DateTime.now().millisecondsSinceEpoch}_${name}$ext');
+    await dest.writeAsBytes(bytes);
+    return dest;
   }
 
   // Pick multiple images

@@ -895,15 +895,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 const TextSpan(text: 'I agree to the '),
                 WidgetSpan(
                   child: GestureDetector(
-                    onTap: () {
-                      // TODO: Open terms and agreements page
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Terms and Agreements page will open here'),
-                          backgroundColor: AppTheme.primaryColor,
-                        ),
-                      );
-                    },
+                    onTap: () => context.push('/terms'),
                     child: Text(
                       'Terms and Agreements',
                       style: TextStyle(
@@ -917,15 +909,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 const TextSpan(text: ' and '),
                 WidgetSpan(
                   child: GestureDetector(
-                    onTap: () {
-                      // TODO: Open privacy policy page
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Privacy Policy page will open here'),
-                          backgroundColor: AppTheme.primaryColor,
-                        ),
-                      );
-                    },
+                    onTap: () => context.push('/privacy'),
                     child: Text(
                       'Privacy Policy',
                       style: TextStyle(

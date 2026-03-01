@@ -131,13 +131,20 @@ class NotificationService {
 
       print('Notification ID: ${notification.id}');
       print('Saving to Firestore...');
-      
+
+      // Firestore rule allows create when request.auth.uid == senderId (so e.g. KYC submitter can create event in admin's inbox)
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      final json = notification.toJson();
+      if (currentUid != null) {
+        json['senderId'] = currentUid;
+      }
+
       await _firestore
           .collection('notifications')
           .doc(userId)
           .collection('events')
           .doc(notification.id)
-          .set(notification.toJson());
+          .set(json);
 
       print('Notification saved to Firestore successfully');
 

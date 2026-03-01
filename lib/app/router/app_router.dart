@@ -40,6 +40,7 @@ import 'package:aradi/features/admin/screens/admin_verification_page.dart';
 import 'package:aradi/features/admin/screens/admin_settings_page.dart';
 import 'package:aradi/features/admin/screens/admin_contact_inbox_page.dart';
 import 'package:aradi/features/shared/screens/terms_page.dart';
+import 'package:aradi/features/shared/screens/privacy_page.dart';
 import 'package:aradi/features/shared/screens/settings_page.dart';
 import 'package:aradi/features/shared/screens/contact_admin_page.dart';
 import 'package:aradi/features/notifications/screens/notifications_page.dart';
@@ -105,6 +106,8 @@ class AppRouter {
             if (state.matchedLocation != '/' && 
                 state.matchedLocation != '/role' && 
                 state.matchedLocation != '/auth' &&
+                state.matchedLocation != '/terms' &&
+                state.matchedLocation != '/privacy' &&
                 !state.matchedLocation.startsWith('/kyc/')) {
               return '/auth';
             }
@@ -116,6 +119,8 @@ class AppRouter {
           if (state.matchedLocation != '/' && 
               state.matchedLocation != '/role' && 
               state.matchedLocation != '/auth' &&
+              state.matchedLocation != '/terms' &&
+              state.matchedLocation != '/privacy' &&
               !state.matchedLocation.startsWith('/kyc/')) {
             return '/auth';
           }
@@ -146,6 +151,15 @@ class AppRouter {
       GoRoute(
         path: '/auth',
         builder: (context, state) => const AuthPage(),
+      ),
+      // Public legal pages (accessible without login, e.g. from signup)
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsPage(),
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyPage(),
       ),
       
       // Developer Routes
@@ -180,6 +194,10 @@ class AppRouter {
         GoRoute(
           path: '/dev/terms',
           builder: (context, state) => const TermsPage(),
+        ),
+        GoRoute(
+          path: '/dev/privacy',
+          builder: (context, state) => const PrivacyPage(),
         ),
         GoRoute(
           path: '/dev/contact-admin',
@@ -331,6 +349,10 @@ class AppRouter {
         GoRoute(
           path: '/seller/terms',
           builder: (context, state) => const TermsPage(),
+        ),
+        GoRoute(
+          path: '/seller/privacy',
+          builder: (context, state) => const PrivacyPage(),
         ),
         GoRoute(
           path: '/seller/contact-admin',

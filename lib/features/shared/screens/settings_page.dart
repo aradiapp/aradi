@@ -35,6 +35,14 @@ class SettingsPage extends StatelessWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.privacy_tip, color: AppTheme.primaryColor),
+                  title: const Text('Privacy Policy'),
+                  subtitle: const Text('How we collect, use and protect your data'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () => context.push('$_basePath/privacy'),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.contact_support, color: AppTheme.primaryColor),
                   title: const Text('Contact admin'),
                   subtitle: const Text('Send a message to administration'),

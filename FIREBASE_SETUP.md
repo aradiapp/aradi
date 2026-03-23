@@ -12,7 +12,7 @@
 
 1. In Firebase Console → Project Settings → General
 2. Click "Add app" → Android
-3. **Android package name**: Check your `android/app/build.gradle.kts` file for the `applicationId`
+3. **Android package name**: `com.aradi.technologies` (must match `applicationId` in `android/app/build.gradle.kts`)
 4. **App nickname**: `ARADI Android`
 5. **Download `google-services.json`**
 6. **Place it in**: `android/app/google-services.json`

@@ -10,7 +10,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Config is from --dart-define only (no .env file bundled)
-  final useFirebase = AppEnv.useFirebase && AppEnv.hasFirebaseConfig;
+  final useFirebase = AppEnv.useFirebase;
   final isWeb = !Platform.isAndroid && !Platform.isIOS;
   
   print('Firebase enabled: $useFirebase, Is Web: $isWeb');

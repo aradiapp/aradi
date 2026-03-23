@@ -25,24 +25,34 @@ class FirebaseService {
 
   static Future<void> initialize() async {
     try {
-      if (!AppEnv.useFirebase || !AppEnv.hasFirebaseConfig) {
-        print('Firebase disabled or config not provided (use --dart-define)');
+      if (!AppEnv.useFirebase) {
+        print('Firebase disabled (USE_FIREBASE=false)');
         return;
       }
 
-      _app = await Firebase.initializeApp(
-        options: FirebaseOptions(
-          apiKey: AppEnv.firebaseApiKey,
-          appId: AppEnv.firebaseAppId,
-          messagingSenderId: AppEnv.firebaseMessagingSenderId,
-          projectId: AppEnv.firebaseProjectId.isNotEmpty
-              ? AppEnv.firebaseProjectId
-              : 'aradi-app',
-          storageBucket: AppEnv.firebaseStorageBucket.isNotEmpty
-              ? AppEnv.firebaseStorageBucket
-              : 'aradi-app.appspot.com',
-        ),
-      );
+      // Prefer native config on Android/iOS (google-services.json / GoogleService-Info.plist).
+      // This is required for Play Store builds because --dart-define values are not passed there.
+      try {
+        _app = await Firebase.initializeApp();
+      } catch (e) {
+        // Fallback for dev/CI runs that rely on --dart-define.
+        if (!AppEnv.hasFirebaseConfig) {
+          rethrow;
+        }
+        _app = await Firebase.initializeApp(
+          options: FirebaseOptions(
+            apiKey: AppEnv.firebaseApiKey,
+            appId: AppEnv.firebaseAppId,
+            messagingSenderId: AppEnv.firebaseMessagingSenderId,
+            projectId: AppEnv.firebaseProjectId.isNotEmpty
+                ? AppEnv.firebaseProjectId
+                : 'aradi-app',
+            storageBucket: AppEnv.firebaseStorageBucket.isNotEmpty
+                ? AppEnv.firebaseStorageBucket
+                : 'aradi-app.appspot.com',
+          ),
+        );
+      }
 
       // Initialize services
       _auth = FirebaseAuth.instance;
@@ -270,7 +280,7 @@ class FirebaseService {
   }
 
   static bool get isInitialized => _app != null;
-  static bool get isEnabled => AppEnv.useFirebase && AppEnv.hasFirebaseConfig;
+  static bool get isEnabled => AppEnv.useFirebase;
 }
 
 // Background message handler

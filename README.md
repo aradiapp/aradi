@@ -97,6 +97,10 @@ Config is in `env.example` (real values). `dart run scripts/run_with_env.dart` c
 
 Firebase config is in `env.example`. Ensure `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) are in place, then run `dart run scripts/run_with_env.dart` or use the `--dart-define` commands from the README.
 
+### Publishing to Google Play
+
+See **[docs/PLAY_STORE_GUIDE.md](docs/PLAY_STORE_GUIDE.md)** for a full step-by-step: Play Console setup, release signing, store listing, and building the Android App Bundle (AAB).
+
 ### Code Generation
 
 The app uses Riverpod code generation. Run after making changes:
